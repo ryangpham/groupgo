@@ -42,7 +42,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Create `backend/.env`:
+Create `backend/.env` from the example file:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Then update values in `backend/.env`:
 
 ```env
 DATABASE_URL=postgresql://postgres:<password>@<host>:5432/postgres
@@ -72,12 +78,13 @@ Frontend runs at `http://127.0.0.1:5173` by default.
 
 ## 4) Fill in `.env` Values (Supabase + API Keys)
 
-Use Supabase and Google Places to replace placeholder values in `backend/.env`.
+Use `backend/.env.example` as the template and replace placeholders in your local `backend/.env`.
 
 1. In Supabase, create/open the project.
 2. In **Project Settings -> Database**, copy the Postgres connection string and set it as `DATABASE_URL`.
 3. Set your `GOOGLE_PLACES_API_KEY` from Google Cloud.
-4. Set `JWT_SECRET_KEY` to a long random secret string.
+4. Set `JWT_SECRET_KEY` to the shared team dev secret.
+5. Keep defaults unless needed: `JWT_ALGORITHM=HS256`, `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 If you are initializing the DB, open Supabase **SQL Editor** and run:
 - `database/schema.sql`
