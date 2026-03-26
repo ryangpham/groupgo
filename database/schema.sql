@@ -42,3 +42,23 @@ CREATE TABLE memberships(
 	FOREIGN KEY (trip_id) REFERENCES trips(trip_id) ON DELETE CASCADE,
 	FOREIGN KEY (role_id) REFERENCES roles(role_id)
 );
+
+CREATE TABLE tasks (
+    task_id SERIAL PRIMARY KEY,
+    trip_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    due_date DATE,
+
+    FOREIGN KEY (trip_id) REFERENCES trips(trip_id)
+);
+
+CREATE TABLE reservations (
+    reservation_id SERIAL PRIMARY KEY,
+    trip_id INTEGER NOT NULL,
+    provider TEXT,
+    confirmation_no TEXT,
+    place_id INTEGER,
+
+    FOREIGN KEY (trip_id) REFERENCES trips(trip_id),
+    FOREIGN KEY (place_id) REFERENCES places(place_id)
+);
