@@ -88,17 +88,23 @@
 }
 
 .ui-card,
-.dashboard-card {
-  width: min(100%, 430px);
+.dashboard-card,
+.trip-detail-card {
+  width: 100%;
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(16, 49, 58, 0.1);
   box-shadow: 0 24px 70px rgba(41, 61, 71, 0.12);
 }
 
+.auth-panel .ui-card {
+  max-width: 430px;
+}
+
 .ui-card-header,
 .ui-card-content,
-.dashboard-card {
+.dashboard-card,
+.trip-detail-card {
   padding: 32px;
 }
 
@@ -177,6 +183,10 @@
 }
 
 .ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   border: 0;
   border-radius: 18px;
   padding: 15px 18px;
@@ -197,6 +207,30 @@
   filter: saturate(1.05);
 }
 
+.ui-button-outline {
+  background: rgba(255, 255, 255, 0.88);
+  color: #0f8faa;
+  border: 1px solid rgba(15, 143, 170, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(15, 143, 170, 0.1);
+}
+
+.ui-button-outline:hover {
+  box-shadow:
+    inset 0 0 0 1px rgba(15, 143, 170, 0.2),
+    0 22px 38px rgba(15, 143, 170, 0.12);
+}
+
+.ui-button-ghost {
+  background: rgba(16, 49, 58, 0.05);
+  color: #214a54;
+  box-shadow: none;
+}
+
+.ui-button-ghost:hover {
+  box-shadow: none;
+  background: rgba(16, 49, 58, 0.08);
+}
+
 .ui-button:focus-visible,
 .dashboard-link:focus-visible,
 .auth-switch a:focus-visible,
@@ -211,19 +245,347 @@
   color: #58707a;
 }
 
+.dashboard-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(35, 194, 224, 0.16), transparent 24%),
+    radial-gradient(circle at right, rgba(255, 196, 87, 0.14), transparent 22%),
+    linear-gradient(180deg, #f7fbfd 0%, #eef5f8 100%);
+}
+
+.dashboard-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(16px);
+  background: rgba(247, 251, 253, 0.8);
+  border-bottom: 1px solid rgba(16, 49, 58, 0.08);
+}
+
+.dashboard-header-inner,
 .dashboard-page {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.dashboard-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0;
+}
+
+.dashboard-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dashboard-brand-mark {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  box-shadow: 0 16px 32px rgba(15, 143, 170, 0.16);
+}
+
+.dashboard-brand h1 {
+  margin: 2px 0 0;
+  font: 700 1.4rem/1 'Space Grotesk', sans-serif;
+  color: #10313a;
+}
+
+.avatar-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ui-avatar {
+  width: 48px;
+  height: 48px;
+  padding: 2px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(15, 143, 170, 0.18), rgba(255, 196, 87, 0.34));
+}
+
+.ui-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #0f8faa 0%, #23c2e0 100%);
+  color: #f9feff;
+  font-weight: 800;
+}
+
+.ui-dropdown {
+  position: relative;
+}
+
+.ui-dropdown-content {
+  position: absolute;
+  top: calc(100% + 12px);
+  min-width: 190px;
+  padding: 8px;
+  border-radius: 18px;
+  border: 1px solid rgba(16, 49, 58, 0.1);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 20px 48px rgba(41, 61, 71, 0.16);
+  backdrop-filter: blur(14px);
+}
+
+.ui-dropdown-content.is-end {
+  right: 0;
+}
+
+.ui-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #214a54;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ui-dropdown-item:hover {
+  background: rgba(15, 143, 170, 0.08);
+}
+
+.dashboard-page {
+  display: grid;
+  gap: 28px;
+  padding: 42px 0 52px;
+}
+
+.dashboard-hero-panel,
+.dashboard-empty-state,
+.trip-detail-card {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 30px;
+  border-radius: 32px;
+  border: 1px solid rgba(16, 49, 58, 0.08);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.95)),
+    linear-gradient(135deg, rgba(35, 194, 224, 0.18), rgba(255, 196, 87, 0.12));
+  box-shadow: 0 28px 60px rgba(41, 61, 71, 0.1);
+}
+
+.dashboard-hero-panel h2,
+.dashboard-empty-state h2,
+.trip-detail-card h1 {
+  margin: 6px 0 10px;
+  max-width: 12ch;
+  font: 700 clamp(2.2rem, 4vw, 3.7rem) / 0.98 'Space Grotesk', sans-serif;
+  color: #10313a;
+}
+
+.dashboard-hero-panel p:not(.dashboard-kicker),
+.dashboard-empty-state p:not(.dashboard-kicker),
+.trip-detail-card p {
+  margin: 0;
+  max-width: 44rem;
+  color: #4e6670;
+}
+
+.dashboard-create-button {
+  flex-shrink: 0;
+}
+
+.trip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.trip-card {
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.trip-card:hover,
+.trip-card:focus-visible {
+  transform: translateY(-4px);
+  border-color: rgba(15, 143, 170, 0.2);
+  box-shadow: 0 32px 60px rgba(41, 61, 71, 0.14);
+  outline: none;
+}
+
+.trip-card-content {
+  display: grid;
+  gap: 24px;
+}
+
+.trip-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trip-card-label {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #0f8faa;
+}
+
+.trip-member-pill,
+.trip-detail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(15, 143, 170, 0.08);
+  color: #0b7086;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.trip-card-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.trip-card-copy h3 {
+  margin: 0;
+  font: 700 1.55rem/1.08 'Space Grotesk', sans-serif;
+  color: #10313a;
+}
+
+.trip-card-copy p,
+.trip-meta-item span {
+  margin: 0;
+  color: #58707a;
+}
+
+.trip-meta-list {
+  display: grid;
+  gap: 12px;
+}
+
+.trip-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #0f8faa;
+}
+
+.trip-open-button {
+  width: 100%;
+}
+
+.dashboard-empty-state {
+  flex-direction: column;
+  align-items: start;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 49, 58, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.modal-card {
+  max-width: 560px;
+}
+
+.modal-header {
+  gap: 12px;
+}
+
+.modal-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #0f8faa;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.input-icon-wrap {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(33, 74, 84, 0.15);
+  border-radius: 16px;
+  padding: 0 16px;
+  background: rgba(248, 251, 252, 0.95);
+  color: #0f8faa;
+}
+
+.input-icon-wrap .ui-input {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.input-icon-wrap:focus-within {
+  border-color: rgba(15, 143, 170, 0.65);
+  box-shadow: 0 0 0 4px rgba(35, 194, 224, 0.14);
+}
+
+.date-grid,
+.modal-actions,
+.trip-detail-actions {
+  display: flex;
+  gap: 14px;
+}
+
+.date-grid > * {
+  flex: 1;
+}
+
+.modal-actions {
+  justify-content: flex-end;
+}
+
+.trip-detail-page {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 32px;
+  padding: 32px 20px;
   background:
-    radial-gradient(circle at top, rgba(35, 194, 224, 0.14), transparent 30%),
+    radial-gradient(circle at top, rgba(35, 194, 224, 0.14), transparent 26%),
     linear-gradient(180deg, #f8fcfd 0%, #eef5f8 100%);
 }
 
-.dashboard-card {
-  display: grid;
-  gap: 18px;
+.trip-detail-card {
+  max-width: 860px;
+  align-items: start;
+  flex-direction: column;
+}
+
+.trip-detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 900px) {
@@ -241,18 +603,44 @@
   }
 
   .auth-hero h1,
-  .dashboard-card h1 {
+  .dashboard-hero-panel h2,
+  .dashboard-empty-state h2,
+  .trip-detail-card h1 {
     max-width: none;
   }
 
   .ui-card,
-  .dashboard-card {
+  .dashboard-card,
+  .trip-detail-card {
     width: 100%;
   }
 
   .ui-card-header,
   .ui-card-content,
-  .dashboard-card {
+  .dashboard-card,
+  .trip-detail-card {
     padding: 24px;
+  }
+
+  .dashboard-header-inner,
+  .dashboard-page {
+    width: min(100%, calc(100% - 32px));
+  }
+
+  .dashboard-hero-panel,
+  .trip-detail-actions,
+  .date-grid,
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .trip-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1180px) {
+  .trip-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
