@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AuthShell } from '../components/auth/AuthShell'
+import { useAuth } from '../hooks/useAuth'
+import { ApiError } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -8,13 +10,30 @@ import { Label } from '../components/ui/label'
 
 export function SignUpPage() {
   const navigate = useNavigate()
+  const { isAuthenticated, isLoading, signUp } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSignUp = (event: React.FormEvent<HTMLFormElement>) => {
+  if (!isLoading && isAuthenticated) {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  const handleSignUp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    navigate('/dashboard')
+
+    try {
+      setIsSubmitting(true)
+      setError('')
+      await signUp({ email, display_name: name, password })
+      navigate('/dashboard')
+    } catch (error) {
+      setError(error instanceof ApiError ? error.message : 'Unable to create your account right now')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -64,11 +83,17 @@ export function SignUpPage() {
                 placeholder="Create a password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                minLength={8}
                 required
               />
+              <p className="form-hint">Use at least 8 characters.</p>
             </div>
 
-            <Button type="submit">Create Account</Button>
+            {error ? <p className="form-message form-message-error">{error}</p> : null}
+
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Creating Account...' : 'Create Account'}
+            </Button>
           </form>
 
           <p className="auth-switch">

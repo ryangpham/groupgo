@@ -9,6 +9,7 @@ import type { CreateTripInput } from '../types/trip'
 type CreateTripModalProps = {
   onClose: () => void
   onCreateTrip: (trip: CreateTripInput) => void
+  isSubmitting?: boolean
 }
 
 const initialState: CreateTripInput = {
@@ -18,7 +19,7 @@ const initialState: CreateTripInput = {
   endDate: '',
 }
 
-export function CreateTripModal({ onClose, onCreateTrip }: CreateTripModalProps) {
+export function CreateTripModal({ onClose, onCreateTrip, isSubmitting = false }: CreateTripModalProps) {
   const [formData, setFormData] = useState<CreateTripInput>(initialState)
 
   useEffect(() => {
@@ -78,10 +79,9 @@ export function CreateTripModal({ onClose, onCreateTrip }: CreateTripModalProps)
                 <Input
                   id="trip-destination"
                   type="text"
-                  placeholder="Tokyo, Japan"
+                  placeholder="Optional for now"
                   value={formData.destination}
                   onChange={(event) => updateField('destination', event.target.value)}
-                  required
                 />
               </div>
             </div>
@@ -112,10 +112,12 @@ export function CreateTripModal({ onClose, onCreateTrip }: CreateTripModalProps)
             </div>
 
             <div className="modal-actions">
-              <Button type="button" variant="ghost" onClick={onClose}>
+              <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="submit">Create Trip</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating...' : 'Create Trip'}
+              </Button>
             </div>
           </form>
         </CardContent>

@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Calendar, LogOut, MapPin, Plus, Users } from 'lucide-react'
 import { CreateTripModal } from '../components/CreateTripModal'
+import { useAuth } from '../hooks/useAuth'
+import { ApiError, createTrip, getUserTrips } from '../lib/api'
 import { Avatar, AvatarFallback } from '../components/ui/avatar'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
@@ -15,50 +17,124 @@ import type { CreateTripInput, Trip } from '../types/trip'
 
 export function DashboardPage() {
   const navigate = useNavigate()
+  const { logout, token, user } = useAuth()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [trips, setTrips] = useState<Trip[]>([
-    {
-      id: '1',
-      name: 'Summer Beach Vacation',
-      destination: 'Bali, Indonesia',
-      startDate: '2026-07-15',
-      endDate: '2026-07-22',
-      memberCount: 6,
-    },
-    {
-      id: '2',
-      name: 'Mountain Hiking Trip',
-      destination: 'Swiss Alps, Switzerland',
-      startDate: '2026-08-10',
-      endDate: '2026-08-17',
-      memberCount: 4,
-    },
-    {
-      id: '3',
-      name: 'City Break',
-      destination: 'Tokyo, Japan',
-      startDate: '2026-09-05',
-      endDate: '2026-09-12',
-      memberCount: 8,
-    },
-  ])
+  const [trips, setTrips] = useState<Trip[]>([])
+  const [isLoadingTrips, setIsLoadingTrips] = useState(true)
+  const [error, setError] = useState('')
+  const [isCreatingTrip, setIsCreatingTrip] = useState(false)
 
-  const handleCreateTrip = (tripData: CreateTripInput) => {
-    const newTrip: Trip = {
-      ...tripData,
-      id: String(trips.length + 1),
-      memberCount: 1,
+  const userInitials = useMemo(() => {
+    if (!user?.display_name) {
+      return 'GG'
     }
 
-    setTrips((current) => [newTrip, ...current])
-    setIsCreateModalOpen(false)
+    return user.display_name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('')
+  }, [user?.display_name])
+
+  useEffect(() => {
+    if (!token || !user) {
+      return
+    }
+
+    let cancelled = false
+
+    setIsLoadingTrips(true)
+    setError('')
+
+    getUserTrips(token, user.user_id)
+      .then((tripRows) => {
+        if (cancelled) {
+          return
+        }
+
+        const mappedTrips = tripRows.map((tripRow) => ({
+          id: String(tripRow.trip_id),
+          name: String(tripRow.trip_name),
+          destination: '',
+          startDate: typeof tripRow.start_date === 'string' ? tripRow.start_date : '',
+          endDate: typeof tripRow.end_date === 'string' ? tripRow.end_date : '',
+          memberCount: Number(tripRow.member_count ?? 1),
+        }))
+
+        setTrips(mappedTrips)
+      })
+      .catch((apiError) => {
+        if (cancelled) {
+          return
+        }
+
+        setError(apiError instanceof ApiError ? apiError.message : 'Unable to load your trips')
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingTrips(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [token, user])
+
+  const handleCreateTrip = async (tripData: CreateTripInput) => {
+    if (!token || !user) {
+      return
+    }
+
+    try {
+      setIsCreatingTrip(true)
+      setError('')
+
+      const createdTrip = await createTrip(token, {
+        trip_name: tripData.name,
+        start_date: tripData.startDate,
+        end_date: tripData.endDate,
+        owner_user_id: user.user_id,
+        destination: tripData.destination,
+      })
+
+      const newTrip: Trip = {
+        id: String(createdTrip.trip_id),
+        name: String(createdTrip.trip_name),
+        destination: tripData.destination,
+        startDate: typeof createdTrip.start_date === 'string' ? createdTrip.start_date : '',
+        endDate: typeof createdTrip.end_date === 'string' ? createdTrip.end_date : '',
+        memberCount: Number(createdTrip.member_count ?? 1),
+      }
+
+      setTrips((current) => [newTrip, ...current])
+      setIsCreateModalOpen(false)
+    } catch (apiError) {
+      setError(apiError instanceof ApiError ? apiError.message : 'Unable to create trip')
+    } finally {
+      setIsCreatingTrip(false)
+    }
   }
 
   const formatDateRange = (startDate: string, endDate: string) => {
+    if (!startDate && !endDate) {
+      return 'Dates to be added'
+    }
+
     const start = new Date(startDate)
     const end = new Date(endDate)
 
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return 'Dates to be added'
+    }
+
     return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/')
   }
 
   return (
@@ -79,13 +155,13 @@ export function DashboardPage() {
             <DropdownMenuTrigger asChild>
               <button type="button" className="avatar-button">
                 <Avatar>
-                  <AvatarFallback>JD</AvatarFallback>
+                  <AvatarFallback>{userInitials}</AvatarFallback>
                 </Avatar>
               </button>
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate('/')}>
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut size={16} />
                 <span>Log out</span>
               </DropdownMenuItem>
@@ -100,8 +176,8 @@ export function DashboardPage() {
             <p className="dashboard-kicker">Your trips</p>
             <h2>Manage every group adventure in one place.</h2>
             <p>
-              Keep dates, destinations, and people aligned without jumping across chats,
-              docs, and spreadsheets.
+              Welcome back, {user?.display_name ?? 'traveler'}. Keep dates, destinations,
+              and people aligned without jumping across chats, docs, and spreadsheets.
             </p>
           </div>
 
@@ -111,7 +187,15 @@ export function DashboardPage() {
           </Button>
         </section>
 
-        {trips.length > 0 ? (
+        {error ? <p className="form-message form-message-error dashboard-message">{error}</p> : null}
+
+        {isLoadingTrips ? (
+          <section className="dashboard-empty-state">
+            <p className="dashboard-kicker">Loading</p>
+            <h2>Pulling in your trips.</h2>
+            <p>We&apos;re fetching the latest plans tied to your account.</p>
+          </section>
+        ) : trips.length > 0 ? (
           <section className="trip-grid">
             {trips.map((trip) => (
               <Card
@@ -135,13 +219,13 @@ export function DashboardPage() {
 
                   <div className="trip-card-copy">
                     <h3>{trip.name}</h3>
-                    <p>{trip.destination}</p>
+                    <p>{trip.destination || 'Destination to be added'}</p>
                   </div>
 
                   <div className="trip-meta-list">
                     <div className="trip-meta-item">
                       <MapPin size={16} />
-                      <span>{trip.destination}</span>
+                      <span>{trip.destination || 'Destination coming soon'}</span>
                     </div>
                     <div className="trip-meta-item">
                       <Calendar size={16} />
@@ -181,6 +265,7 @@ export function DashboardPage() {
         <CreateTripModal
           onClose={() => setIsCreateModalOpen(false)}
           onCreateTrip={handleCreateTrip}
+          isSubmitting={isCreatingTrip}
         />
       ) : null}
     </div>

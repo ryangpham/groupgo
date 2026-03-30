@@ -245,6 +245,41 @@
   color: #58707a;
 }
 
+.form-message {
+  margin: 0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 0.94rem;
+}
+
+.form-hint {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #6f848c;
+}
+
+.form-message-error {
+  background: rgba(194, 59, 59, 0.08);
+  color: #9e2e2e;
+  border: 1px solid rgba(194, 59, 59, 0.14);
+}
+
+.dashboard-message {
+  max-width: 420px;
+}
+
+.page-state {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top, rgba(35, 194, 224, 0.14), transparent 26%),
+    linear-gradient(180deg, #f8fcfd 0%, #eef5f8 100%);
+  color: #214a54;
+  font: 700 1rem/1 'Manrope', sans-serif;
+}
+
 .dashboard-shell {
   min-height: 100vh;
   background:
