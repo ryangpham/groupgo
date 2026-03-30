@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.database import test_connection
+from app.routes.auth import router as auth_router
 from app.routes.reservations import router as reservations_router
 from app.routes.tasks import router as tasks_router
 from app.routes.trips import router as trip_router
@@ -19,6 +20,7 @@ def db_test():
     return {"db_result": test_connection()}
 
 
+app.include_router(auth_router)
 app.include_router(tasks_router)
 app.include_router(reservations_router)
 app.include_router(trip_router)
