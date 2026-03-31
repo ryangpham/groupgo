@@ -1,10 +1,11 @@
 from typing import Any, cast
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 
 from app.database import execute_returning, fetch_all, fetch_one
 from app.schemas.reservations import ReservationCreate, ReservationUpdate
+from app.security import get_current_user
 
 router = APIRouter(tags=["reservations"])
 
@@ -18,7 +19,7 @@ def handle_integrity_error(exc: IntegrityError):
 
 
 @router.get("/reservations")
-def list_reservations():
+def list_reservations(_current_user: dict = Depends(get_current_user)):
     return fetch_all(
         """
         SELECT reservation_id, trip_id, provider, confirmation_no, place_id
@@ -29,7 +30,7 @@ def list_reservations():
 
 
 @router.get("/reservations/{reservation_id}")
-def get_reservation(reservation_id: int):
+def get_reservation(reservation_id: int, _current_user: dict = Depends(get_current_user)):
     reservation = fetch_one(
         """
         SELECT reservation_id, trip_id, provider, confirmation_no, place_id
@@ -44,7 +45,7 @@ def get_reservation(reservation_id: int):
 
 
 @router.get("/trips/{trip_id}/reservations")
-def list_trip_reservations(trip_id: int):
+def list_trip_reservations(trip_id: int, _current_user: dict = Depends(get_current_user)):
     return fetch_all(
         """
         SELECT reservation_id, trip_id, provider, confirmation_no, place_id
@@ -57,7 +58,7 @@ def list_trip_reservations(trip_id: int):
 
 
 @router.post("/reservations", status_code=201)
-def create_reservation(reservation: ReservationCreate):
+def create_reservation(reservation: ReservationCreate, _current_user: dict = Depends(get_current_user)):
     try:
         return execute_returning(
             """
@@ -72,7 +73,7 @@ def create_reservation(reservation: ReservationCreate):
 
 
 @router.put("/reservations/{reservation_id}")
-def update_reservation(reservation_id: int, reservation: ReservationUpdate):
+def update_reservation(reservation_id: int, reservation: ReservationUpdate, _current_user: dict = Depends(get_current_user)):
     existing_reservation = fetch_one(
         """
         SELECT reservation_id, trip_id, provider, confirmation_no, place_id
@@ -112,7 +113,7 @@ def update_reservation(reservation_id: int, reservation: ReservationUpdate):
 
 
 @router.delete("/reservations/{reservation_id}")
-def delete_reservation(reservation_id: int):
+def delete_reservation(reservation_id: int, _current_user: dict = Depends(get_current_user)):
     deleted_reservation = execute_returning(
         """
         DELETE FROM reservations

@@ -1,10 +1,11 @@
 from typing import Any, cast
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 
 from app.database import execute_returning, fetch_all, fetch_one
 from app.schemas.tasks import TaskCreate, TaskUpdate
+from app.security import get_current_user
 
 router = APIRouter(tags=["tasks"])
 
@@ -18,7 +19,7 @@ def handle_integrity_error(exc: IntegrityError):
 
 
 @router.get("/tasks")
-def list_tasks():
+def list_tasks(_current_user: dict = Depends(get_current_user)):
     return fetch_all(
         """
         SELECT task_id, trip_id, title, due_date
@@ -29,7 +30,7 @@ def list_tasks():
 
 
 @router.get("/tasks/{task_id}")
-def get_task(task_id: int):
+def get_task(task_id: int, _current_user: dict = Depends(get_current_user)):
     task = fetch_one(
         """
         SELECT task_id, trip_id, title, due_date
@@ -44,7 +45,7 @@ def get_task(task_id: int):
 
 
 @router.get("/trips/{trip_id}/tasks")
-def list_trip_tasks(trip_id: int):
+def list_trip_tasks(trip_id: int, _current_user: dict = Depends(get_current_user)):
     return fetch_all(
         """
         SELECT task_id, trip_id, title, due_date
@@ -57,7 +58,7 @@ def list_trip_tasks(trip_id: int):
 
 
 @router.post("/tasks", status_code=201)
-def create_task(task: TaskCreate):
+def create_task(task: TaskCreate, _current_user: dict = Depends(get_current_user)):
     try:
         return execute_returning(
             """
@@ -72,7 +73,7 @@ def create_task(task: TaskCreate):
 
 
 @router.put("/tasks/{task_id}")
-def update_task(task_id: int, task: TaskUpdate):
+def update_task(task_id: int, task: TaskUpdate, _current_user: dict = Depends(get_current_user)):
     existing_task = fetch_one(
         """
         SELECT task_id, trip_id, title, due_date
@@ -110,7 +111,7 @@ def update_task(task_id: int, task: TaskUpdate):
 
 
 @router.delete("/tasks/{task_id}")
-def delete_task(task_id: int):
+def delete_task(task_id: int, _current_user: dict = Depends(get_current_user)):
     deleted_task = execute_returning(
         """
         DELETE FROM tasks
