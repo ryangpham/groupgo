@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from '../ui/avatar'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
 import { useAuth } from '../../hooks/useAuth'
+import { parseDateOnly } from '../../lib/date'
 import { ApiError, createTask, deleteTask, getTripTasks, updateTask } from '../../lib/api'
 
 type Member = {
@@ -241,7 +242,7 @@ export default function TasksTab({ members, tripId }: { members: Member[]; tripI
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = parseDateOnly(dateString)
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 

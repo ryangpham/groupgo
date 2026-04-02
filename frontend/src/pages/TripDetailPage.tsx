@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from '../components/ui/avatar'
 import { Button } from '../components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { useAuth } from '../hooks/useAuth'
+import { parseDateOnly } from '../lib/date'
 import { ApiError, getTrip } from '../lib/api'
 import type { Trip } from '../types/trip'
 
@@ -105,8 +106,8 @@ export function TripDetailPage() {
   )
 
   const formatDateRange = (startDate: string, endDate: string) => {
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    const start = parseDateOnly(startDate)
+    const end = parseDateOnly(endDate)
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       return 'Dates to be announced'

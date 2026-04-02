@@ -4,6 +4,7 @@ import { AddReservationModal, type ReservationFormData } from '../AddReservation
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { useAuth } from '../../hooks/useAuth'
+import { parseDateOnly } from '../../lib/date'
 import { ApiError, createReservation, deleteReservation, getTripReservations, updateReservation } from '../../lib/api'
 
 type ReservationItem = {
@@ -206,7 +207,7 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = parseDateOnly(dateString)
 
     if (Number.isNaN(date.getTime())) {
       return 'Date not stored yet'

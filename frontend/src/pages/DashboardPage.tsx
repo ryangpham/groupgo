@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Calendar, LogOut, MapPin, Plus, Users } from 'lucide-react'
 import { CreateTripModal } from '../components/CreateTripModal'
 import { useAuth } from '../hooks/useAuth'
+import { parseDateOnly } from '../lib/date'
 import { ApiError, createTrip, getUserTrips } from '../lib/api'
 import { Avatar, AvatarFallback } from '../components/ui/avatar'
 import { Button } from '../components/ui/button'
@@ -122,8 +123,8 @@ export function DashboardPage() {
       return 'Dates to be added'
     }
 
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    const start = parseDateOnly(startDate)
+    const end = parseDateOnly(endDate)
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       return 'Dates to be added'
