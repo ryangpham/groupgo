@@ -1,6 +1,6 @@
-import { CalendarDays, MapPinned, PlaneTakeoff, Users } from 'lucide-react'
+import { Calendar, CheckSquare, DollarSign } from 'lucide-react'
 import type { Trip } from '../../types/trip'
-import { TabSection } from './TabSection'
+import { Card, CardContent } from '../ui/card'
 
 type Member = {
   id: string
@@ -9,34 +9,55 @@ type Member = {
 }
 
 export default function OverviewTab({ trip, members }: { trip: Trip; members: Member[] }) {
+  const summaryData = [
+    {
+      title: 'Total Expenses',
+      value: '$3,245',
+      icon: DollarSign,
+      description: 'Across all members',
+    },
+    {
+      title: 'Tasks Remaining',
+      value: '7',
+      icon: CheckSquare,
+      description: 'Out of 12 total tasks',
+    },
+    {
+      title: 'Upcoming Reservations',
+      value: '4',
+      icon: Calendar,
+      description: 'Hotels, restaurants, and activities',
+    },
+  ]
+
   return (
-    <TabSection
-      eyebrow="Overview"
-      title="A quick pulse on this trip"
-      description="This is the high-level snapshot for the trip. Detailed editing and live planning tools can plug into these sections next."
-    >
-      <div className="trip-overview-grid">
-        <article className="trip-overview-card">
-          <MapPinned size={18} />
-          <h3>Destination</h3>
-          <p>{trip.destination || 'Destination to be finalized with the group.'}</p>
-        </article>
-        <article className="trip-overview-card">
-          <CalendarDays size={18} />
-          <h3>Timing</h3>
-          <p>{trip.startDate && trip.endDate ? `${trip.startDate} to ${trip.endDate}` : 'Dates still need to be confirmed.'}</p>
-        </article>
-        <article className="trip-overview-card">
-          <Users size={18} />
-          <h3>Travelers</h3>
-          <p>{members.length} people are currently attached to this trip workspace.</p>
-        </article>
-        <article className="trip-overview-card">
-          <PlaneTakeoff size={18} />
-          <h3>Status</h3>
-          <p>The shared itinerary workspace is ready for tasks, places, reservations, and expenses.</p>
-        </article>
+    <section className="trip-tab-section trip-functional-tab">
+      <div className="trip-functional-header">
+        <div className="trip-tab-intro">
+          <p className="dashboard-kicker">Overview</p>
+          <h2>Trip Overview</h2>
+          <p>
+            Quick summary of your trip details for {trip.name} with {members.length} travelers currently in the workspace.
+          </p>
+        </div>
       </div>
-    </TabSection>
+
+      <div className="overview-stats-grid">
+        {summaryData.map((item) => (
+          <Card key={item.title} className="overview-stat-card">
+            <CardContent className="overview-stat-content">
+              <div className="overview-stat-icon">
+                <item.icon size={22} />
+              </div>
+              <div>
+                <p className="overview-stat-label">{item.title}</p>
+                <p className="overview-stat-value">{item.value}</p>
+                <p className="overview-stat-description">{item.description}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
   )
 }

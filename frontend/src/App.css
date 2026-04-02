@@ -182,6 +182,29 @@
   transform: translateY(-1px);
 }
 
+.ui-select {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #10313a;
+  font: inherit;
+  outline: none;
+  appearance: none;
+  padding: 14px 0;
+}
+
+.input-select-wrap {
+  align-items: stretch;
+}
+
+.ui-checkbox {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: #23c2e0;
+  cursor: pointer;
+}
+
 .ui-button {
   display: inline-flex;
   align-items: center;
@@ -795,6 +818,17 @@
   padding: 28px;
 }
 
+.trip-functional-tab {
+  gap: 28px;
+}
+
+.trip-functional-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
 .trip-tab-intro {
   display: grid;
   gap: 8px;
@@ -841,6 +875,391 @@
   margin: 0;
   color: #5d727a;
   line-height: 1.6;
+}
+
+.task-list-shell,
+.reservation-empty-state {
+  border-radius: 24px;
+  border: 1px solid rgba(16, 49, 58, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 40px rgba(41, 61, 71, 0.06);
+}
+
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.task-row-border {
+  border-bottom: 1px solid rgba(16, 49, 58, 0.06);
+}
+
+.task-title {
+  flex: 1;
+  cursor: pointer;
+  color: #10313a;
+  font-weight: 600;
+}
+
+.task-title.is-complete {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.task-meta,
+.task-assignee,
+.task-date,
+.reservation-card-content,
+.reservation-meta-item {
+  display: flex;
+  align-items: center;
+}
+
+.task-meta {
+  gap: 18px;
+}
+
+.task-assignee,
+.task-date {
+  gap: 10px;
+  color: #677b83;
+  font-size: 0.92rem;
+}
+
+.task-assignee-avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.reservation-list-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.reservation-card {
+  border-radius: 24px;
+}
+
+.reservation-card-content {
+  gap: 18px;
+  align-items: start;
+}
+
+.reservation-icon-wrap {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: rgba(15, 143, 170, 0.08);
+  color: #0f8faa;
+}
+
+.reservation-copy {
+  flex: 1;
+  display: grid;
+  gap: 14px;
+}
+
+.reservation-top-row h3 {
+  margin: 12px 0 0;
+  color: #10313a;
+  font: 700 1.2rem/1.1 'Space Grotesk', sans-serif;
+}
+
+.reservation-type-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #23c2e0;
+  color: #f7feff;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.reservation-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.reservation-meta-item {
+  gap: 10px;
+  color: #677b83;
+  font-size: 0.92rem;
+}
+
+.reservation-meta-label,
+.reservation-meta-value {
+  margin: 0;
+}
+
+.reservation-meta-label {
+  color: #71858d;
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+}
+
+.reservation-meta-value {
+  color: #10313a;
+  font-weight: 600;
+}
+
+.reservation-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: #677b83;
+}
+
+.multi-select-shell {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(16, 49, 58, 0.08);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(248, 251, 252, 0.8);
+}
+
+.multi-select-row,
+.multi-select-info,
+.overview-stat-content,
+.places-saved-heading,
+.place-card-top,
+.place-rating,
+.place-address,
+.place-card-footer,
+.expense-summary-content,
+.expense-paid-by,
+.expense-split-row,
+.expense-member-stack,
+.expense-card-top {
+  display: flex;
+  align-items: center;
+}
+
+.multi-select-row {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.multi-select-info {
+  gap: 10px;
+  color: #214a54;
+}
+
+.overview-stats-grid,
+.places-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.overview-stat-card,
+.place-card,
+.expense-summary-card,
+.expense-card {
+  border-radius: 24px;
+}
+
+.overview-stat-content,
+.expense-summary-content {
+  gap: 18px;
+}
+
+.overview-stat-icon,
+.expense-summary-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: rgba(15, 143, 170, 0.08);
+  color: #0f8faa;
+}
+
+.overview-stat-label,
+.overview-stat-value,
+.overview-stat-description,
+.expense-summary-label,
+.expense-summary-value,
+.expense-amount-value,
+.expense-amount-meta,
+.place-address p,
+.expense-paid-by span,
+.expense-split-row span {
+  margin: 0;
+}
+
+.overview-stat-label,
+.expense-summary-label {
+  color: #71858d;
+  font-size: 0.9rem;
+}
+
+.overview-stat-value,
+.expense-summary-value {
+  color: #10313a;
+  font: 700 2rem/1 'Space Grotesk', sans-serif;
+  margin-top: 8px;
+}
+
+.overview-stat-description {
+  color: #677b83;
+  font-size: 0.85rem;
+  margin-top: 6px;
+}
+
+.places-section {
+  display: grid;
+  gap: 16px;
+}
+
+.places-section-title {
+  margin: 0;
+  color: #10313a;
+  font: 700 1.2rem/1.1 'Space Grotesk', sans-serif;
+}
+
+.places-saved-heading {
+  gap: 10px;
+  color: #0f8faa;
+}
+
+.places-search-shell {
+  position: relative;
+}
+
+.places-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+  color: #71858d;
+}
+
+.places-search-input {
+  padding-left: 48px;
+}
+
+.place-card-content,
+.expense-card-content,
+.expense-card-copy {
+  display: grid;
+  gap: 14px;
+}
+
+.place-card-top,
+.place-card-footer,
+.expense-card-top {
+  justify-content: space-between;
+  align-items: start;
+  gap: 14px;
+}
+
+.place-card-top h4 {
+  margin: 0;
+  color: #10313a;
+  font: 700 1.1rem/1.15 'Space Grotesk', sans-serif;
+}
+
+.place-rating {
+  gap: 6px;
+  color: #10313a;
+  font-size: 0.92rem;
+}
+
+.place-rating svg {
+  color: #f1b500;
+  fill: #f1b500;
+}
+
+.place-address {
+  align-items: start;
+  gap: 10px;
+  color: #677b83;
+}
+
+.place-type-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(16, 49, 58, 0.06);
+  color: #214a54;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.expense-summary-card {
+  max-width: 420px;
+}
+
+.expense-list-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.expense-card-top {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(16, 49, 58, 0.06);
+}
+
+.expense-card-copy h3 {
+  margin: 0;
+  color: #10313a;
+  font: 700 1.15rem/1.15 'Space Grotesk', sans-serif;
+}
+
+.expense-paid-by {
+  gap: 8px;
+  color: #677b83;
+  font-size: 0.92rem;
+}
+
+.expense-paid-avatar,
+.expense-split-avatar {
+  width: 28px;
+  height: 28px;
+}
+
+.expense-amount-block {
+  text-align: right;
+}
+
+.expense-amount-value {
+  color: #10313a;
+  font: 700 1.7rem/1 'Space Grotesk', sans-serif;
+}
+
+.expense-amount-meta {
+  color: #71858d;
+  font-size: 0.8rem;
+  margin-top: 6px;
+}
+
+.expense-split-row {
+  gap: 10px;
+  flex-wrap: wrap;
+  color: #677b83;
+  font-size: 0.92rem;
+}
+
+.expense-member-stack {
+  gap: 0;
+}
+
+.expense-member-stack .expense-split-avatar {
+  margin-left: -8px;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+}
+
+.expense-member-stack .expense-split-avatar:first-child {
+  margin-left: 0;
 }
 
 .invite-modal-card {
@@ -906,8 +1325,20 @@
     align-items: start;
   }
 
+  .trip-functional-header,
+  .task-row,
+  .task-meta,
+  .reservation-card-content,
+  .reservation-meta-grid {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: start;
+  }
+
   .trip-overview-grid,
-  .trip-placeholder-grid {
+  .trip-placeholder-grid,
+  .overview-stats-grid,
+  .places-grid {
     grid-template-columns: 1fr;
   }
 
