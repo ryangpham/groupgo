@@ -254,6 +254,15 @@
   background: rgba(16, 49, 58, 0.08);
 }
 
+.ui-button-danger {
+  color: #b33b3b;
+}
+
+.ui-button-danger:hover {
+  background: rgba(179, 59, 59, 0.08);
+  color: #972f2f;
+}
+
 .ui-button:focus-visible,
 .dashboard-link:focus-visible,
 .auth-switch a:focus-visible,
@@ -655,6 +664,16 @@
   justify-content: flex-end;
 }
 
+.modal-actions-split {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-actions-cluster {
+  display: flex;
+  gap: 14px;
+}
+
 .trip-detail-page {
   min-height: 100vh;
   display: grid;
@@ -928,6 +947,22 @@
   font-size: 0.92rem;
 }
 
+.inline-edit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #0f8faa;
+  font: 700 0.9rem/1 inherit;
+  cursor: pointer;
+}
+
+.inline-edit-button:hover {
+  color: #0b7086;
+}
+
 .task-assignee-avatar {
   width: 30px;
   height: 30px;
@@ -967,6 +1002,13 @@
   margin: 12px 0 0;
   color: #10313a;
   font: 700 1.2rem/1.1 'Space Grotesk', sans-serif;
+}
+
+.reservation-top-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
 }
 
 .reservation-type-pill {
@@ -1328,6 +1370,8 @@
   .trip-functional-header,
   .task-row,
   .task-meta,
+  .modal-actions-split,
+  .modal-actions-cluster,
   .reservation-card-content,
   .reservation-meta-grid {
     grid-template-columns: 1fr;

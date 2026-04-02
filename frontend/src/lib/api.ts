@@ -102,6 +102,10 @@ export function updateTask(
   return request<Record<string, unknown>>(`/tasks/${taskId}`, { method: 'PUT', token, body: payload })
 }
 
+export function deleteTask(token: string, taskId: string) {
+  return request<Record<string, unknown>>(`/tasks/${taskId}`, { method: 'DELETE', token })
+}
+
 export function getTripReservations(token: string, tripId: string) {
   return request<Array<Record<string, unknown>>>(`/trips/${tripId}/reservations`, { token })
 }
@@ -119,4 +123,24 @@ export function createReservation(
   },
 ) {
   return request<Record<string, unknown>>('/reservations', { method: 'POST', token, body: payload })
+}
+
+export function updateReservation(
+  token: string,
+  reservationId: string,
+  payload: {
+    trip_id?: number
+    provider?: string | null
+    place_name?: string | null
+    reservation_type?: string | null
+    reservation_date?: string | null
+    confirmation_no?: string | null
+    place_id?: number | null
+  },
+) {
+  return request<Record<string, unknown>>(`/reservations/${reservationId}`, { method: 'PUT', token, body: payload })
+}
+
+export function deleteReservation(token: string, reservationId: string) {
+  return request<Record<string, unknown>>(`/reservations/${reservationId}`, { method: 'DELETE', token })
 }

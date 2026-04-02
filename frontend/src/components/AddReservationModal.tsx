@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { CalendarDays, Hotel, ReceiptText, Ticket } from 'lucide-react'
+import { CalendarDays, Hotel, ReceiptText, Ticket, Trash2 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader } from './ui/card'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 
-type ReservationFormData = {
+export type ReservationFormData = {
   type: string
   placeName: string
   date: string
@@ -15,8 +15,12 @@ type ReservationFormData = {
 type AddReservationModalProps = {
   open: boolean
   onClose: () => void
-  onAddReservation: (reservation: ReservationFormData) => void | Promise<void>
+  onSubmitReservation: (reservation: ReservationFormData) => void | Promise<void>
+  initialValues?: ReservationFormData
+  mode?: 'create' | 'edit'
+  onDeleteReservation?: () => void | Promise<void>
   isSubmitting?: boolean
+  isDeleting?: boolean
 }
 
 const defaultState: ReservationFormData = {
@@ -26,15 +30,25 @@ const defaultState: ReservationFormData = {
   confirmationNumber: '',
 }
 
-export function AddReservationModal({ open, onClose, onAddReservation, isSubmitting = false }: AddReservationModalProps) {
-  const [formData, setFormData] = useState<ReservationFormData>(defaultState)
+export function AddReservationModal({
+  open,
+  onClose,
+  onSubmitReservation,
+  initialValues,
+  mode = 'create',
+  onDeleteReservation,
+  isSubmitting = false,
+  isDeleting = false,
+}: AddReservationModalProps) {
+  const values = initialValues ?? defaultState
+  const [formData, setFormData] = useState<ReservationFormData>(values)
 
   if (!open) {
     return null
   }
 
   const handleClose = () => {
-    setFormData(defaultState)
+    setFormData(values)
     onClose()
   }
 
@@ -44,9 +58,9 @@ export function AddReservationModal({ open, onClose, onAddReservation, isSubmitt
         <CardHeader className="modal-header">
           <div className="modal-kicker">
             <ReceiptText size={16} />
-            <span>Add a booking</span>
+            <span>{mode === 'edit' ? 'Edit booking' : 'Add a booking'}</span>
           </div>
-          <h2>Create a reservation</h2>
+          <h2>{mode === 'edit' ? 'Update reservation' : 'Create a reservation'}</h2>
           <p className="form-copy">Capture the essential booking details now and expand the record later.</p>
         </CardHeader>
 
@@ -55,7 +69,7 @@ export function AddReservationModal({ open, onClose, onAddReservation, isSubmitt
             className="auth-form"
             onSubmit={async (event) => {
               event.preventDefault()
-              await onAddReservation(formData)
+              await onSubmitReservation(formData)
             }}
           >
             <div className="field-group">
@@ -67,7 +81,7 @@ export function AddReservationModal({ open, onClose, onAddReservation, isSubmitt
                   className="ui-select"
                   value={formData.type}
                   onChange={(event) => setFormData((current) => ({ ...current, type: event.target.value }))}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isDeleting}
                 >
                   <option value="Hotel">Hotel</option>
                   <option value="Restaurant">Restaurant</option>
@@ -87,7 +101,7 @@ export function AddReservationModal({ open, onClose, onAddReservation, isSubmitt
                   value={formData.placeName}
                   onChange={(event) => setFormData((current) => ({ ...current, placeName: event.target.value }))}
                   required
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isDeleting}
                 />
               </div>
             </div>
@@ -103,7 +117,7 @@ export function AddReservationModal({ open, onClose, onAddReservation, isSubmitt
                     value={formData.date}
                     onChange={(event) => setFormData((current) => ({ ...current, date: event.target.value }))}
                     required
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isDeleting}
                   />
                 </div>
               </div>
@@ -121,19 +135,40 @@ export function AddReservationModal({ open, onClose, onAddReservation, isSubmitt
                       setFormData((current) => ({ ...current, confirmationNumber: event.target.value }))
                     }
                     required
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isDeleting}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="modal-actions">
-              <Button type="button" variant="ghost" onClick={handleClose} disabled={isSubmitting}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Adding...' : 'Add Reservation'}
-              </Button>
+            <div className="modal-actions modal-actions-split">
+              {mode === 'edit' && onDeleteReservation ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="ui-button-danger"
+                  onClick={async () => await onDeleteReservation()}
+                  disabled={isSubmitting || isDeleting}
+                >
+                  <Trash2 size={16} />
+                  <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                </Button>
+              ) : null}
+
+              <div className="modal-actions-cluster">
+                <Button type="button" variant="ghost" onClick={handleClose} disabled={isSubmitting || isDeleting}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting || isDeleting}>
+                  {isSubmitting
+                    ? mode === 'edit'
+                      ? 'Saving...'
+                      : 'Adding...'
+                    : mode === 'edit'
+                      ? 'Save Changes'
+                      : 'Add Reservation'}
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>

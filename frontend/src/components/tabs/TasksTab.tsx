@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Calendar, Plus } from 'lucide-react'
+import { Calendar, Pencil, Plus } from 'lucide-react'
 import { AddTaskModal } from '../AddTaskModal'
 import { Avatar, AvatarFallback } from '../ui/avatar'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
 import { useAuth } from '../../hooks/useAuth'
-import { ApiError, createTask, getTripTasks, updateTask } from '../../lib/api'
+import { ApiError, createTask, deleteTask, getTripTasks, updateTask } from '../../lib/api'
 
 type Member = {
   id: string
@@ -43,11 +43,13 @@ function parseUserId(value: string | null | undefined) {
 
 export default function TasksTab({ members, tripId }: { members: Member[]; tripId: string }) {
   const { token } = useAuth()
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null)
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (!token) {
@@ -115,28 +117,42 @@ export default function TasksTab({ members, tripId }: { members: Member[]; tripI
     return `${completedCount} of ${tasks.length} complete`
   }, [tasks])
 
+  const closeModal = () => {
+    setSelectedTask(null)
+    setIsTaskModalOpen(false)
+  }
+
+  const openCreateModal = () => {
+    setSelectedTask(null)
+    setIsTaskModalOpen(true)
+  }
+
+  const openEditModal = (task: TaskItem) => {
+    setSelectedTask(task)
+    setIsTaskModalOpen(true)
+  }
+
   const handleToggleTask = (taskId: string) => {
     const existingTask = tasks.find((item) => item.id === taskId)
     const nextCompleted = existingTask ? !existingTask.completed : false
 
     setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, completed: nextCompleted } : task)))
 
-    const task = existingTask
-    if (!token || !task) {
+    if (!token || !existingTask) {
       return
     }
 
     updateTask(token, taskId, {
-      title: task.title,
-        due_date: task.dueDate || null,
-        completed: nextCompleted,
-      assigned_user_id: parseUserId(task.assignedUserId),
+      title: existingTask.title,
+      due_date: existingTask.dueDate || null,
+      completed: nextCompleted,
+      assigned_user_id: parseUserId(existingTask.assignedUserId),
     }).catch(() => {
-      setTasks((current) => current.map((item) => (item.id === taskId ? { ...item, completed: task.completed } : item)))
+      setTasks((current) => current.map((item) => (item.id === taskId ? { ...item, completed: existingTask.completed } : item)))
     })
   }
 
-  const handleAddTask = async (taskData: { title: string; dueDate: string; assignedToId: string }) => {
+  const handleSubmitTask = async (taskData: { title: string; dueDate: string; assignedToId: string }) => {
     if (!token) {
       return
     }
@@ -147,35 +163,80 @@ export default function TasksTab({ members, tripId }: { members: Member[]; tripI
       setIsSubmitting(true)
       setError('')
 
-      const createdTask = await createTask(token, {
-        trip_id: Number(tripId),
-        title: taskData.title,
-        due_date: taskData.dueDate || null,
-        completed: false,
-        assigned_user_id: parseUserId(assignedMember?.id),
-      })
+      if (selectedTask) {
+        const updatedTask = await updateTask(token, selectedTask.id, {
+          title: taskData.title,
+          due_date: taskData.dueDate || null,
+          completed: selectedTask.completed,
+          assigned_user_id: parseUserId(taskData.assignedToId),
+        })
 
-      setTasks((current) => [
-        ...current,
-        {
-          id: String(createdTask.task_id),
-          title: String(createdTask.title),
+        setTasks((current) =>
+          current.map((task) =>
+            task.id === selectedTask.id
+              ? {
+                  ...task,
+                  title: String(updatedTask.title),
+                  dueDate: typeof updatedTask.due_date === 'string' ? updatedTask.due_date : '',
+                  assignedTo: assignedMember,
+                  assignedUserId:
+                    updatedTask.assigned_user_id !== null && updatedTask.assigned_user_id !== undefined
+                      ? String(updatedTask.assigned_user_id)
+                      : taskData.assignedToId,
+                }
+              : task,
+          ),
+        )
+      } else {
+        const createdTask = await createTask(token, {
+          trip_id: Number(tripId),
+          title: taskData.title,
+          due_date: taskData.dueDate || null,
           completed: false,
-          assignedTo: assignedMember,
-          dueDate: typeof createdTask.due_date === 'string' ? createdTask.due_date : '',
-          assignedUserId:
-            createdTask.assigned_user_id !== null && createdTask.assigned_user_id !== undefined
-              ? String(createdTask.assigned_user_id)
-              : assignedMember
-                ? assignedMember.id
-                : null,
-        },
-      ])
-      setIsAddModalOpen(false)
+          assigned_user_id: parseUserId(assignedMember?.id),
+        })
+
+        setTasks((current) => [
+          ...current,
+          {
+            id: String(createdTask.task_id),
+            title: String(createdTask.title),
+            completed: Boolean(createdTask.completed),
+            assignedTo: assignedMember,
+            dueDate: typeof createdTask.due_date === 'string' ? createdTask.due_date : '',
+            assignedUserId:
+              createdTask.assigned_user_id !== null && createdTask.assigned_user_id !== undefined
+                ? String(createdTask.assigned_user_id)
+                : assignedMember
+                  ? assignedMember.id
+                  : null,
+          },
+        ])
+      }
+
+      closeModal()
     } catch (apiError) {
-      setError(apiError instanceof ApiError ? apiError.message : 'Unable to create task')
+      setError(apiError instanceof ApiError ? apiError.message : 'Unable to save task')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteTask = async () => {
+    if (!token || !selectedTask) {
+      return
+    }
+
+    try {
+      setIsDeleting(true)
+      setError('')
+      await deleteTask(token, selectedTask.id)
+      setTasks((current) => current.filter((task) => task.id !== selectedTask.id))
+      closeModal()
+    } catch (apiError) {
+      setError(apiError instanceof ApiError ? apiError.message : 'Unable to delete task')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -192,7 +253,7 @@ export default function TasksTab({ members, tripId }: { members: Member[]; tripI
           <h2>Track your trip preparation progress</h2>
           <p>{progressLabel}</p>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)}>
+        <Button onClick={openCreateModal}>
           <Plus size={18} />
           <span>Add Task</span>
         </Button>
@@ -212,11 +273,7 @@ export default function TasksTab({ members, tripId }: { members: Member[]; tripI
               key={task.id}
               className={['task-row', index !== tasks.length - 1 ? 'task-row-border' : ''].filter(Boolean).join(' ')}
             >
-              <Checkbox
-                id={`task-${task.id}`}
-                checked={task.completed}
-                onChange={() => handleToggleTask(task.id)}
-              />
+              <Checkbox id={`task-${task.id}`} checked={task.completed} onChange={() => handleToggleTask(task.id)} />
 
               <label
                 htmlFor={`task-${task.id}`}
@@ -236,6 +293,10 @@ export default function TasksTab({ members, tripId }: { members: Member[]; tripI
                   <Calendar size={15} />
                   <span>{task.dueDate ? formatDate(task.dueDate) : 'No due date'}</span>
                 </div>
+                <button type="button" className="inline-edit-button" onClick={() => openEditModal(task)}>
+                  <Pencil size={15} />
+                  <span>Edit</span>
+                </button>
               </div>
             </div>
           ))}
@@ -248,11 +309,24 @@ export default function TasksTab({ members, tripId }: { members: Member[]; tripI
       )}
 
       <AddTaskModal
-        open={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAddTask={handleAddTask}
+        key={selectedTask ? `edit-${selectedTask.id}` : 'create-task'}
+        open={isTaskModalOpen}
+        onClose={closeModal}
+        onSubmitTask={handleSubmitTask}
         members={members}
+        initialValues={
+          selectedTask
+            ? {
+                title: selectedTask.title,
+                dueDate: selectedTask.dueDate,
+                assignedToId: selectedTask.assignedUserId ?? selectedTask.assignedTo.id,
+              }
+            : undefined
+        }
+        mode={selectedTask ? 'edit' : 'create'}
+        onDeleteTask={selectedTask ? handleDeleteTask : undefined}
         isSubmitting={isSubmitting}
+        isDeleting={isDeleting}
       />
     </section>
   )

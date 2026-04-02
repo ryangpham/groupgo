@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Calendar, Hotel, Plus, Ticket, UtensilsCrossed } from 'lucide-react'
-import { AddReservationModal } from '../AddReservationModal'
+import { Calendar, Hotel, Pencil, Plus, Ticket, UtensilsCrossed } from 'lucide-react'
+import { AddReservationModal, type ReservationFormData } from '../AddReservationModal'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { useAuth } from '../../hooks/useAuth'
-import { ApiError, createReservation, getTripReservations } from '../../lib/api'
+import { ApiError, createReservation, deleteReservation, getTripReservations, updateReservation } from '../../lib/api'
 
 type ReservationItem = {
   id: string
@@ -16,11 +16,13 @@ type ReservationItem = {
 
 export default function ReservationsTab({ tripId }: { tripId: string }) {
   const { token } = useAuth()
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isReservationModalOpen, setIsReservationModalOpen] = useState(false)
+  const [selectedReservation, setSelectedReservation] = useState<ReservationItem | null>(null)
   const [reservations, setReservations] = useState<ReservationItem[]>([])
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (!token) {
@@ -72,12 +74,22 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
     }
   }, [token, tripId])
 
-  const handleAddReservation = async (reservationData: {
-    type: string
-    placeName: string
-    date: string
-    confirmationNumber: string
-  }) => {
+  const closeModal = () => {
+    setSelectedReservation(null)
+    setIsReservationModalOpen(false)
+  }
+
+  const openCreateModal = () => {
+    setSelectedReservation(null)
+    setIsReservationModalOpen(true)
+  }
+
+  const openEditModal = (reservation: ReservationItem) => {
+    setSelectedReservation(reservation)
+    setIsReservationModalOpen(true)
+  }
+
+  const handleSubmitReservation = async (reservationData: ReservationFormData) => {
     if (!token) {
       return
     }
@@ -86,41 +98,97 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
       setIsSubmitting(true)
       setError('')
 
-      const createdReservation = await createReservation(token, {
-        trip_id: Number(tripId),
-        provider: reservationData.placeName,
-        place_name: reservationData.placeName,
-        reservation_type: reservationData.type,
-        reservation_date: reservationData.date || null,
-        confirmation_no: reservationData.confirmationNumber,
-        place_id: null,
-      })
+      if (selectedReservation) {
+        const updatedReservation = await updateReservation(token, selectedReservation.id, {
+          trip_id: Number(tripId),
+          provider: reservationData.placeName,
+          place_name: reservationData.placeName,
+          reservation_type: reservationData.type,
+          reservation_date: reservationData.date || null,
+          confirmation_no: reservationData.confirmationNumber,
+          place_id: null,
+        })
 
-      setReservations((current) => [
-        ...current,
-        {
-          id: String(createdReservation.reservation_id),
-          type:
-            typeof createdReservation.reservation_type === 'string' && createdReservation.reservation_type.trim()
-              ? String(createdReservation.reservation_type)
-              : reservationData.type,
-          placeName:
-            typeof createdReservation.place_name === 'string' && createdReservation.place_name.trim()
-              ? String(createdReservation.place_name)
-              : createdReservation.provider
-                ? String(createdReservation.provider)
+        setReservations((current) =>
+          current.map((reservation) =>
+            reservation.id === selectedReservation.id
+              ? {
+                  id: reservation.id,
+                  type:
+                    typeof updatedReservation.reservation_type === 'string' && updatedReservation.reservation_type.trim()
+                      ? String(updatedReservation.reservation_type)
+                      : reservationData.type,
+                  placeName:
+                    typeof updatedReservation.place_name === 'string' && updatedReservation.place_name.trim()
+                      ? String(updatedReservation.place_name)
+                      : reservationData.placeName,
+                  date:
+                    typeof updatedReservation.reservation_date === 'string'
+                      ? updatedReservation.reservation_date
+                      : reservationData.date,
+                  confirmationNumber:
+                    typeof updatedReservation.confirmation_no === 'string' && updatedReservation.confirmation_no.trim()
+                      ? String(updatedReservation.confirmation_no)
+                      : reservationData.confirmationNumber,
+                }
+              : reservation,
+          ),
+        )
+      } else {
+        const createdReservation = await createReservation(token, {
+          trip_id: Number(tripId),
+          provider: reservationData.placeName,
+          place_name: reservationData.placeName,
+          reservation_type: reservationData.type,
+          reservation_date: reservationData.date || null,
+          confirmation_no: reservationData.confirmationNumber,
+          place_id: null,
+        })
+
+        setReservations((current) => [
+          ...current,
+          {
+            id: String(createdReservation.reservation_id),
+            type:
+              typeof createdReservation.reservation_type === 'string' && createdReservation.reservation_type.trim()
+                ? String(createdReservation.reservation_type)
+                : reservationData.type,
+            placeName:
+              typeof createdReservation.place_name === 'string' && createdReservation.place_name.trim()
+                ? String(createdReservation.place_name)
                 : reservationData.placeName,
-          date: typeof createdReservation.reservation_date === 'string' ? createdReservation.reservation_date : reservationData.date,
-          confirmationNumber: createdReservation.confirmation_no
-            ? String(createdReservation.confirmation_no)
-            : reservationData.confirmationNumber,
-        },
-      ])
-      setIsAddModalOpen(false)
+            date: typeof createdReservation.reservation_date === 'string' ? createdReservation.reservation_date : reservationData.date,
+            confirmationNumber:
+              typeof createdReservation.confirmation_no === 'string' && createdReservation.confirmation_no.trim()
+                ? String(createdReservation.confirmation_no)
+                : reservationData.confirmationNumber,
+          },
+        ])
+      }
+
+      closeModal()
     } catch (apiError) {
-      setError(apiError instanceof ApiError ? apiError.message : 'Unable to create reservation')
+      setError(apiError instanceof ApiError ? apiError.message : 'Unable to save reservation')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteCurrentReservation = async () => {
+    if (!token || !selectedReservation) {
+      return
+    }
+
+    try {
+      setIsDeleting(true)
+      setError('')
+      await deleteReservation(token, selectedReservation.id)
+      setReservations((current) => current.filter((reservation) => reservation.id !== selectedReservation.id))
+      closeModal()
+    } catch (apiError) {
+      setError(apiError instanceof ApiError ? apiError.message : 'Unable to delete reservation')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -138,10 +206,6 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
   }
 
   const formatDate = (dateString: string) => {
-    if (!dateString) {
-      return 'Date not stored yet'
-    }
-
     const date = new Date(dateString)
 
     if (Number.isNaN(date.getTime())) {
@@ -164,7 +228,7 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
           <h2>Manage your bookings and confirmations</h2>
           <p>Keep lodging, dining, and activity confirmations in one trip-ready view.</p>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)}>
+        <Button onClick={openCreateModal}>
           <Plus size={18} />
           <span>Add Reservation</span>
         </Button>
@@ -195,6 +259,10 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
                         <span className="reservation-type-pill">{reservation.type}</span>
                         <h3>{reservation.placeName}</h3>
                       </div>
+                      <button type="button" className="inline-edit-button" onClick={() => openEditModal(reservation)}>
+                        <Pencil size={15} />
+                        <span>Edit</span>
+                      </button>
                     </div>
 
                     <div className="reservation-meta-grid">
@@ -221,10 +289,24 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
       )}
 
       <AddReservationModal
-        open={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAddReservation={handleAddReservation}
+        key={selectedReservation ? `edit-${selectedReservation.id}` : 'create-reservation'}
+        open={isReservationModalOpen}
+        onClose={closeModal}
+        onSubmitReservation={handleSubmitReservation}
+        initialValues={
+          selectedReservation
+            ? {
+                type: selectedReservation.type,
+                placeName: selectedReservation.placeName,
+                date: selectedReservation.date,
+                confirmationNumber: selectedReservation.confirmationNumber,
+              }
+            : undefined
+        }
+        mode={selectedReservation ? 'edit' : 'create'}
+        onDeleteReservation={selectedReservation ? handleDeleteCurrentReservation : undefined}
         isSubmitting={isSubmitting}
+        isDeleting={isDeleting}
       />
     </section>
   )

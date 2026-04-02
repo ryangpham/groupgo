@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarDays, CheckSquare, UserRound } from 'lucide-react'
+import { CalendarDays, CheckSquare, Trash2, UserRound } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader } from './ui/card'
 import { Input } from './ui/input'
@@ -11,27 +11,53 @@ type Member = {
   initials: string
 }
 
+type TaskFormData = {
+  title: string
+  dueDate: string
+  assignedToId: string
+}
+
 type AddTaskModalProps = {
   open: boolean
   onClose: () => void
-  onAddTask: (taskData: { title: string; dueDate: string; assignedToId: string }) => void | Promise<void>
+  onSubmitTask: (taskData: TaskFormData) => void | Promise<void>
   members: Member[]
+  initialValues?: TaskFormData
+  mode?: 'create' | 'edit'
+  onDeleteTask?: () => void | Promise<void>
   isSubmitting?: boolean
+  isDeleting?: boolean
 }
 
-export function AddTaskModal({ open, onClose, onAddTask, members, isSubmitting = false }: AddTaskModalProps) {
-  const [title, setTitle] = useState('')
-  const [dueDate, setDueDate] = useState('')
-  const [assignedToId, setAssignedToId] = useState(members[0]?.id ?? '')
+export function AddTaskModal({
+  open,
+  onClose,
+  onSubmitTask,
+  members,
+  initialValues,
+  mode = 'create',
+  onDeleteTask,
+  isSubmitting = false,
+  isDeleting = false,
+}: AddTaskModalProps) {
+  const defaultValues: TaskFormData = initialValues ?? {
+    title: '',
+    dueDate: '',
+    assignedToId: members[0]?.id ?? '',
+  }
+
+  const [title, setTitle] = useState(defaultValues.title)
+  const [dueDate, setDueDate] = useState(defaultValues.dueDate)
+  const [assignedToId, setAssignedToId] = useState(defaultValues.assignedToId)
 
   if (!open) {
     return null
   }
 
   const handleClose = () => {
-    setTitle('')
-    setDueDate('')
-    setAssignedToId(members[0]?.id ?? '')
+    setTitle(defaultValues.title)
+    setDueDate(defaultValues.dueDate)
+    setAssignedToId(defaultValues.assignedToId)
     onClose()
   }
 
@@ -41,9 +67,9 @@ export function AddTaskModal({ open, onClose, onAddTask, members, isSubmitting =
         <CardHeader className="modal-header">
           <div className="modal-kicker">
             <CheckSquare size={16} />
-            <span>Add a task</span>
+            <span>{mode === 'edit' ? 'Edit task' : 'Add a task'}</span>
           </div>
-          <h2>Track a new trip task</h2>
+          <h2>{mode === 'edit' ? 'Update task details' : 'Track a new trip task'}</h2>
           <p className="form-copy">Capture one responsibility, assign it, and keep the group aligned.</p>
         </CardHeader>
 
@@ -52,7 +78,7 @@ export function AddTaskModal({ open, onClose, onAddTask, members, isSubmitting =
             className="auth-form"
             onSubmit={async (event) => {
               event.preventDefault()
-              await onAddTask({ title, dueDate, assignedToId })
+              await onSubmitTask({ title, dueDate, assignedToId })
             }}
           >
             <div className="field-group">
@@ -66,7 +92,7 @@ export function AddTaskModal({ open, onClose, onAddTask, members, isSubmitting =
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   required
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isDeleting}
                 />
               </div>
             </div>
@@ -82,6 +108,7 @@ export function AddTaskModal({ open, onClose, onAddTask, members, isSubmitting =
                     value={dueDate}
                     onChange={(event) => setDueDate(event.target.value)}
                     required
+                    disabled={isSubmitting || isDeleting}
                   />
                 </div>
               </div>
@@ -96,7 +123,7 @@ export function AddTaskModal({ open, onClose, onAddTask, members, isSubmitting =
                     value={assignedToId}
                     onChange={(event) => setAssignedToId(event.target.value)}
                     required
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isDeleting}
                   >
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>
@@ -108,11 +135,28 @@ export function AddTaskModal({ open, onClose, onAddTask, members, isSubmitting =
               </div>
             </div>
 
-            <div className="modal-actions">
-              <Button type="button" variant="ghost" onClick={handleClose} disabled={isSubmitting}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Adding...' : 'Add Task'}</Button>
+            <div className="modal-actions modal-actions-split">
+              {mode === 'edit' && onDeleteTask ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="ui-button-danger"
+                  onClick={async () => await onDeleteTask()}
+                  disabled={isSubmitting || isDeleting}
+                >
+                  <Trash2 size={16} />
+                  <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                </Button>
+              ) : null}
+
+              <div className="modal-actions-cluster">
+                <Button type="button" variant="ghost" onClick={handleClose} disabled={isSubmitting || isDeleting}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting || isDeleting}>
+                  {isSubmitting ? (mode === 'edit' ? 'Saving...' : 'Adding...') : mode === 'edit' ? 'Save Changes' : 'Add Task'}
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>
