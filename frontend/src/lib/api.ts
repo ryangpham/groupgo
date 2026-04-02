@@ -66,6 +66,10 @@ export function getUserTrips(token: string, userId: number) {
   return request<Array<Record<string, unknown>>>(`/users/${userId}/trips`, { token })
 }
 
+export function getTrip(token: string, tripId: string) {
+  return request<Record<string, unknown>>(`/trips/${tripId}`, { token })
+}
+
 export function createTrip(
   token: string,
   payload: { trip_name: string; destination?: string; start_date: string; end_date: string; owner_user_id: number },
