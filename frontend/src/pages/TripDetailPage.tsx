@@ -46,9 +46,10 @@ export function TripDetailPage() {
 
   const members = useMemo<Member[]>(() => {
     const leadName = user?.display_name ?? 'You'
+    const leadId = user?.user_id ? String(user.user_id) : 'current-user'
 
-    return [{ id: '1', name: leadName, initials: getInitials(leadName) }, ...invitedMembers]
-  }, [invitedMembers, user?.display_name])
+    return [{ id: leadId, name: leadName, initials: getInitials(leadName) }, ...invitedMembers]
+  }, [invitedMembers, user?.display_name, user?.user_id])
 
   useEffect(() => {
     if (!tripId || !token) {
@@ -116,7 +117,7 @@ export function TripDetailPage() {
 
   const handleInviteMember = (email: string) => {
     const newMember = {
-      id: String(invitedMembers.length + 2),
+      id: `temp-${invitedMembers.length + 1}`,
       name: email.split('@')[0],
       initials: email.slice(0, 2).toUpperCase(),
     }
@@ -202,13 +203,13 @@ export function TripDetailPage() {
                   <OverviewTab trip={displayTrip} members={members} />
                 </TabsContent>
                 <TabsContent value="tasks">
-                  <TasksTab members={members} />
+                  <TasksTab members={members} tripId={displayTrip.id} />
                 </TabsContent>
                 <TabsContent value="places">
                   <PlacesTab />
                 </TabsContent>
                 <TabsContent value="reservations">
-                  <ReservationsTab />
+                  <ReservationsTab tripId={displayTrip.id} />
                 </TabsContent>
                 <TabsContent value="expenses">
                   <ExpensesTab members={members} />

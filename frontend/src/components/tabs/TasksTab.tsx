@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Calendar, Plus } from 'lucide-react'
 import { AddTaskModal } from '../AddTaskModal'
 import { Avatar, AvatarFallback } from '../ui/avatar'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
+import { useAuth } from '../../hooks/useAuth'
+import { ApiError, createTask, getTripTasks, updateTask } from '../../lib/api'
 
 type Member = {
   id: string
@@ -11,45 +13,102 @@ type Member = {
   initials: string
 }
 
-export default function TasksTab({ members }: { members: Member[] }) {
+type TaskItem = {
+  id: string
+  title: string
+  completed: boolean
+  assignedTo: Member
+  dueDate: string
+  assignedUserId: string | null
+}
+
+function getInitials(name: string) {
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+
+  return initials || 'TR'
+}
+
+function parseUserId(value: string | null | undefined) {
+  if (!value || !/^\d+$/.test(value)) {
+    return null
+  }
+
+  return Number(value)
+}
+
+export default function TasksTab({ members, tripId }: { members: Member[]; tripId: string }) {
+  const { token } = useAuth()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [tasks, setTasks] = useState([
-    {
-      id: '1',
-      title: 'Book flights',
-      completed: true,
-      assignedTo: members[0],
-      dueDate: '2026-06-15',
-    },
-    {
-      id: '2',
-      title: 'Reserve beach resort',
-      completed: true,
-      assignedTo: members[1] ?? members[0],
-      dueDate: '2026-06-20',
-    },
-    {
-      id: '3',
-      title: 'Plan day trip itinerary',
-      completed: false,
-      assignedTo: members[0],
-      dueDate: '2026-07-01',
-    },
-    {
-      id: '4',
-      title: 'Book snorkeling tour',
-      completed: false,
-      assignedTo: members[2] ?? members[0],
-      dueDate: '2026-07-05',
-    },
-    {
-      id: '5',
-      title: 'Arrange airport transfers',
-      completed: false,
-      assignedTo: members[1] ?? members[0],
-      dueDate: '2026-07-10',
-    },
-  ])
+  const [tasks, setTasks] = useState<TaskItem[]>([])
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!token) {
+      return
+    }
+
+    let cancelled = false
+
+    setIsLoading(true)
+    setError('')
+
+    getTripTasks(token, tripId)
+      .then((taskRows) => {
+        if (cancelled) {
+          return
+        }
+
+        const fallbackAssignee = members[0] ?? { id: '0', name: 'Traveler', initials: 'TR' }
+
+        setTasks(
+          taskRows.map((taskRow) => {
+            const assignedUserId =
+              taskRow.assigned_user_id !== null && taskRow.assigned_user_id !== undefined
+                ? String(taskRow.assigned_user_id)
+                : null
+            const assignedName =
+              typeof taskRow.assigned_user_name === 'string' && taskRow.assigned_user_name.trim()
+                ? taskRow.assigned_user_name
+                : null
+            const assignedTo =
+              members.find((member) => member.id === assignedUserId) ??
+              (assignedName
+                ? { id: assignedUserId ?? '0', name: assignedName, initials: getInitials(assignedName) }
+                : fallbackAssignee)
+
+            return {
+              id: String(taskRow.task_id),
+              title: String(taskRow.title),
+              completed: Boolean(taskRow.completed),
+              assignedTo,
+              dueDate: typeof taskRow.due_date === 'string' ? taskRow.due_date : '',
+              assignedUserId,
+            }
+          }),
+        )
+      })
+      .catch((apiError) => {
+        if (!cancelled) {
+          setError(apiError instanceof ApiError ? apiError.message : 'Unable to load tasks')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [members, token, tripId])
 
   const progressLabel = useMemo(() => {
     const completedCount = tasks.filter((task) => task.completed).length
@@ -57,24 +116,67 @@ export default function TasksTab({ members }: { members: Member[] }) {
   }, [tasks])
 
   const handleToggleTask = (taskId: string) => {
-    setTasks((current) =>
-      current.map((task) => (task.id === taskId ? { ...task, completed: !task.completed } : task)),
-    )
+    const existingTask = tasks.find((item) => item.id === taskId)
+    const nextCompleted = existingTask ? !existingTask.completed : false
+
+    setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, completed: nextCompleted } : task)))
+
+    const task = existingTask
+    if (!token || !task) {
+      return
+    }
+
+    updateTask(token, taskId, {
+      title: task.title,
+        due_date: task.dueDate || null,
+        completed: nextCompleted,
+      assigned_user_id: parseUserId(task.assignedUserId),
+    }).catch(() => {
+      setTasks((current) => current.map((item) => (item.id === taskId ? { ...item, completed: task.completed } : item)))
+    })
   }
 
-  const handleAddTask = (taskData: { title: string; dueDate: string; assignedToId: string }) => {
+  const handleAddTask = async (taskData: { title: string; dueDate: string; assignedToId: string }) => {
+    if (!token) {
+      return
+    }
+
     const assignedMember = members.find((member) => member.id === taskData.assignedToId) ?? members[0]
 
-    setTasks((current) => [
-      ...current,
-      {
-        id: String(current.length + 1),
+    try {
+      setIsSubmitting(true)
+      setError('')
+
+      const createdTask = await createTask(token, {
+        trip_id: Number(tripId),
         title: taskData.title,
+        due_date: taskData.dueDate || null,
         completed: false,
-        assignedTo: assignedMember,
-        dueDate: taskData.dueDate,
-      },
-    ])
+        assigned_user_id: parseUserId(assignedMember?.id),
+      })
+
+      setTasks((current) => [
+        ...current,
+        {
+          id: String(createdTask.task_id),
+          title: String(createdTask.title),
+          completed: false,
+          assignedTo: assignedMember,
+          dueDate: typeof createdTask.due_date === 'string' ? createdTask.due_date : '',
+          assignedUserId:
+            createdTask.assigned_user_id !== null && createdTask.assigned_user_id !== undefined
+              ? String(createdTask.assigned_user_id)
+              : assignedMember
+                ? assignedMember.id
+                : null,
+        },
+      ])
+      setIsAddModalOpen(false)
+    } catch (apiError) {
+      setError(apiError instanceof ApiError ? apiError.message : 'Unable to create task')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -96,46 +198,61 @@ export default function TasksTab({ members }: { members: Member[] }) {
         </Button>
       </div>
 
-      <div className="task-list-shell">
-        {tasks.map((task, index) => (
-          <div
-            key={task.id}
-            className={['task-row', index !== tasks.length - 1 ? 'task-row-border' : ''].filter(Boolean).join(' ')}
-          >
-            <Checkbox
-              id={`task-${task.id}`}
-              checked={task.completed}
-              onChange={() => handleToggleTask(task.id)}
-            />
+      {error ? <p className="form-message form-message-error">{error}</p> : null}
 
-            <label
-              htmlFor={`task-${task.id}`}
-              className={['task-title', task.completed ? 'is-complete' : ''].filter(Boolean).join(' ')}
+      {isLoading ? (
+        <div className="reservation-empty-state">
+          <Calendar size={40} />
+          <p>Loading tasks...</p>
+        </div>
+      ) : tasks.length > 0 ? (
+        <div className="task-list-shell">
+          {tasks.map((task, index) => (
+            <div
+              key={task.id}
+              className={['task-row', index !== tasks.length - 1 ? 'task-row-border' : ''].filter(Boolean).join(' ')}
             >
-              {task.title}
-            </label>
+              <Checkbox
+                id={`task-${task.id}`}
+                checked={task.completed}
+                onChange={() => handleToggleTask(task.id)}
+              />
 
-            <div className="task-meta">
-              <div className="task-assignee">
-                <Avatar className="task-assignee-avatar">
-                  <AvatarFallback>{task.assignedTo.initials}</AvatarFallback>
-                </Avatar>
-                <span>{task.assignedTo.name}</span>
-              </div>
-              <div className="task-date">
-                <Calendar size={15} />
-                <span>{formatDate(task.dueDate)}</span>
+              <label
+                htmlFor={`task-${task.id}`}
+                className={['task-title', task.completed ? 'is-complete' : ''].filter(Boolean).join(' ')}
+              >
+                {task.title}
+              </label>
+
+              <div className="task-meta">
+                <div className="task-assignee">
+                  <Avatar className="task-assignee-avatar">
+                    <AvatarFallback>{task.assignedTo.initials}</AvatarFallback>
+                  </Avatar>
+                  <span>{task.assignedTo.name}</span>
+                </div>
+                <div className="task-date">
+                  <Calendar size={15} />
+                  <span>{task.dueDate ? formatDate(task.dueDate) : 'No due date'}</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="reservation-empty-state">
+          <Calendar size={40} />
+          <p>No tasks yet. Add your first trip task to get started.</p>
+        </div>
+      )}
 
       <AddTaskModal
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddTask={handleAddTask}
         members={members}
+        isSubmitting={isSubmitting}
       />
     </section>
   )

@@ -14,11 +14,12 @@ type Member = {
 type AddTaskModalProps = {
   open: boolean
   onClose: () => void
-  onAddTask: (taskData: { title: string; dueDate: string; assignedToId: string }) => void
+  onAddTask: (taskData: { title: string; dueDate: string; assignedToId: string }) => void | Promise<void>
   members: Member[]
+  isSubmitting?: boolean
 }
 
-export function AddTaskModal({ open, onClose, onAddTask, members }: AddTaskModalProps) {
+export function AddTaskModal({ open, onClose, onAddTask, members, isSubmitting = false }: AddTaskModalProps) {
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [assignedToId, setAssignedToId] = useState(members[0]?.id ?? '')
@@ -49,10 +50,9 @@ export function AddTaskModal({ open, onClose, onAddTask, members }: AddTaskModal
         <CardContent>
           <form
             className="auth-form"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault()
-              onAddTask({ title, dueDate, assignedToId })
-              handleClose()
+              await onAddTask({ title, dueDate, assignedToId })
             }}
           >
             <div className="field-group">
@@ -66,6 +66,7 @@ export function AddTaskModal({ open, onClose, onAddTask, members }: AddTaskModal
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -95,6 +96,7 @@ export function AddTaskModal({ open, onClose, onAddTask, members }: AddTaskModal
                     value={assignedToId}
                     onChange={(event) => setAssignedToId(event.target.value)}
                     required
+                    disabled={isSubmitting}
                   >
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>
@@ -107,10 +109,10 @@ export function AddTaskModal({ open, onClose, onAddTask, members }: AddTaskModal
             </div>
 
             <div className="modal-actions">
-              <Button type="button" variant="ghost" onClick={handleClose}>
+              <Button type="button" variant="ghost" onClick={handleClose} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="submit">Add Task</Button>
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Adding...' : 'Add Task'}</Button>
             </div>
           </form>
         </CardContent>

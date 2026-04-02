@@ -1,42 +1,127 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Calendar, Hotel, Plus, Ticket, UtensilsCrossed } from 'lucide-react'
 import { AddReservationModal } from '../AddReservationModal'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
+import { useAuth } from '../../hooks/useAuth'
+import { ApiError, createReservation, getTripReservations } from '../../lib/api'
 
-export default function ReservationsTab() {
+type ReservationItem = {
+  id: string
+  type: string
+  placeName: string
+  date: string
+  confirmationNumber: string
+}
+
+export default function ReservationsTab({ tripId }: { tripId: string }) {
+  const { token } = useAuth()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [reservations, setReservations] = useState([
-    {
-      id: '1',
-      type: 'Hotel',
-      placeName: 'Alila Villas Uluwatu',
-      date: '2026-07-15',
-      confirmationNumber: 'ALV-2026-789456',
-    },
-    {
-      id: '2',
-      type: 'Restaurant',
-      placeName: 'Locavore Restaurant',
-      date: '2026-07-17',
-      confirmationNumber: 'LR-456789',
-    },
-    {
-      id: '3',
-      type: 'Activity',
-      placeName: 'Sunrise Volcano Trekking',
-      date: '2026-07-19',
-      confirmationNumber: 'SVT-123456',
-    },
-  ])
+  const [reservations, setReservations] = useState<ReservationItem[]>([])
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleAddReservation = (reservationData: {
+  useEffect(() => {
+    if (!token) {
+      return
+    }
+
+    let cancelled = false
+
+    setIsLoading(true)
+    setError('')
+
+    getTripReservations(token, tripId)
+      .then((reservationRows) => {
+        if (cancelled) {
+          return
+        }
+
+        setReservations(
+          reservationRows.map((reservationRow) => ({
+            id: String(reservationRow.reservation_id),
+            type:
+              typeof reservationRow.reservation_type === 'string' && reservationRow.reservation_type.trim()
+                ? String(reservationRow.reservation_type)
+                : 'Reservation',
+            placeName:
+              typeof reservationRow.place_name === 'string' && reservationRow.place_name.trim()
+                ? String(reservationRow.place_name)
+                : reservationRow.provider
+                  ? String(reservationRow.provider)
+                  : 'Untitled reservation',
+            date: typeof reservationRow.reservation_date === 'string' ? reservationRow.reservation_date : '',
+            confirmationNumber: reservationRow.confirmation_no ? String(reservationRow.confirmation_no) : 'Pending',
+          })),
+        )
+      })
+      .catch((apiError) => {
+        if (!cancelled) {
+          setError(apiError instanceof ApiError ? apiError.message : 'Unable to load reservations')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [token, tripId])
+
+  const handleAddReservation = async (reservationData: {
     type: string
     placeName: string
     date: string
     confirmationNumber: string
   }) => {
-    setReservations((current) => [...current, { ...reservationData, id: String(current.length + 1) }])
+    if (!token) {
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      setError('')
+
+      const createdReservation = await createReservation(token, {
+        trip_id: Number(tripId),
+        provider: reservationData.placeName,
+        place_name: reservationData.placeName,
+        reservation_type: reservationData.type,
+        reservation_date: reservationData.date || null,
+        confirmation_no: reservationData.confirmationNumber,
+        place_id: null,
+      })
+
+      setReservations((current) => [
+        ...current,
+        {
+          id: String(createdReservation.reservation_id),
+          type:
+            typeof createdReservation.reservation_type === 'string' && createdReservation.reservation_type.trim()
+              ? String(createdReservation.reservation_type)
+              : reservationData.type,
+          placeName:
+            typeof createdReservation.place_name === 'string' && createdReservation.place_name.trim()
+              ? String(createdReservation.place_name)
+              : createdReservation.provider
+                ? String(createdReservation.provider)
+                : reservationData.placeName,
+          date: typeof createdReservation.reservation_date === 'string' ? createdReservation.reservation_date : reservationData.date,
+          confirmationNumber: createdReservation.confirmation_no
+            ? String(createdReservation.confirmation_no)
+            : reservationData.confirmationNumber,
+        },
+      ])
+      setIsAddModalOpen(false)
+    } catch (apiError) {
+      setError(apiError instanceof ApiError ? apiError.message : 'Unable to create reservation')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const getIcon = (type: string) => {
@@ -53,7 +138,16 @@ export default function ReservationsTab() {
   }
 
   const formatDate = (dateString: string) => {
+    if (!dateString) {
+      return 'Date not stored yet'
+    }
+
     const date = new Date(dateString)
+
+    if (Number.isNaN(date.getTime())) {
+      return 'Date not stored yet'
+    }
+
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
@@ -76,7 +170,14 @@ export default function ReservationsTab() {
         </Button>
       </div>
 
-      {reservations.length > 0 ? (
+      {error ? <p className="form-message form-message-error">{error}</p> : null}
+
+      {isLoading ? (
+        <div className="reservation-empty-state">
+          <Calendar size={40} />
+          <p>Loading reservations...</p>
+        </div>
+      ) : reservations.length > 0 ? (
         <div className="reservation-list-shell">
           {reservations.map((reservation) => {
             const Icon = getIcon(reservation.type)
@@ -123,6 +224,7 @@ export default function ReservationsTab() {
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddReservation={handleAddReservation}
+        isSubmitting={isSubmitting}
       />
     </section>
   )

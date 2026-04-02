@@ -15,7 +15,8 @@ type ReservationFormData = {
 type AddReservationModalProps = {
   open: boolean
   onClose: () => void
-  onAddReservation: (reservation: ReservationFormData) => void
+  onAddReservation: (reservation: ReservationFormData) => void | Promise<void>
+  isSubmitting?: boolean
 }
 
 const defaultState: ReservationFormData = {
@@ -25,7 +26,7 @@ const defaultState: ReservationFormData = {
   confirmationNumber: '',
 }
 
-export function AddReservationModal({ open, onClose, onAddReservation }: AddReservationModalProps) {
+export function AddReservationModal({ open, onClose, onAddReservation, isSubmitting = false }: AddReservationModalProps) {
   const [formData, setFormData] = useState<ReservationFormData>(defaultState)
 
   if (!open) {
@@ -52,10 +53,9 @@ export function AddReservationModal({ open, onClose, onAddReservation }: AddRese
         <CardContent>
           <form
             className="auth-form"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault()
-              onAddReservation(formData)
-              handleClose()
+              await onAddReservation(formData)
             }}
           >
             <div className="field-group">
@@ -67,6 +67,7 @@ export function AddReservationModal({ open, onClose, onAddReservation }: AddRese
                   className="ui-select"
                   value={formData.type}
                   onChange={(event) => setFormData((current) => ({ ...current, type: event.target.value }))}
+                  disabled={isSubmitting}
                 >
                   <option value="Hotel">Hotel</option>
                   <option value="Restaurant">Restaurant</option>
@@ -86,6 +87,7 @@ export function AddReservationModal({ open, onClose, onAddReservation }: AddRese
                   value={formData.placeName}
                   onChange={(event) => setFormData((current) => ({ ...current, placeName: event.target.value }))}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -101,6 +103,7 @@ export function AddReservationModal({ open, onClose, onAddReservation }: AddRese
                     value={formData.date}
                     onChange={(event) => setFormData((current) => ({ ...current, date: event.target.value }))}
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -118,16 +121,19 @@ export function AddReservationModal({ open, onClose, onAddReservation }: AddRese
                       setFormData((current) => ({ ...current, confirmationNumber: event.target.value }))
                     }
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
             </div>
 
             <div className="modal-actions">
-              <Button type="button" variant="ghost" onClick={handleClose}>
+              <Button type="button" variant="ghost" onClick={handleClose} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="submit">Add Reservation</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Adding...' : 'Add Reservation'}
+              </Button>
             </div>
           </form>
         </CardContent>
