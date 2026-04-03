@@ -5,7 +5,7 @@ import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { useAuth } from '../../hooks/useAuth'
 import { parseDateOnly } from '../../lib/date'
-import { ApiError, createReservation, deleteReservation, getTripReservations, updateReservation } from '../../lib/api'
+import { ApiError, createReservation, deleteReservation, getTripPlaces, getTripReservations, updateReservation } from '../../lib/api'
 
 type ReservationItem = {
   id: string
@@ -13,6 +13,12 @@ type ReservationItem = {
   placeName: string
   date: string
   confirmationNumber: string
+  placeId: string
+}
+
+type SavedPlaceOption = {
+  id: string
+  name: string
 }
 
 export default function ReservationsTab({ tripId }: { tripId: string }) {
@@ -20,6 +26,7 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<ReservationItem | null>(null)
   const [reservations, setReservations] = useState<ReservationItem[]>([])
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlaceOption[]>([])
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -35,8 +42,8 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
     setIsLoading(true)
     setError('')
 
-    getTripReservations(token, tripId)
-      .then((reservationRows) => {
+    Promise.all([getTripReservations(token, tripId), getTripPlaces(token, tripId)])
+      .then(([reservationRows, placeRows]) => {
         if (cancelled) {
           return
         }
@@ -49,13 +56,23 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
                 ? String(reservationRow.reservation_type)
                 : 'Reservation',
             placeName:
-              typeof reservationRow.place_name === 'string' && reservationRow.place_name.trim()
-                ? String(reservationRow.place_name)
-                : reservationRow.provider
-                  ? String(reservationRow.provider)
-                  : 'Untitled reservation',
+              typeof reservationRow.linked_place_name === 'string' && reservationRow.linked_place_name.trim()
+                ? String(reservationRow.linked_place_name)
+                : typeof reservationRow.place_name === 'string' && reservationRow.place_name.trim()
+                  ? String(reservationRow.place_name)
+                  : reservationRow.provider
+                    ? String(reservationRow.provider)
+                    : 'Untitled reservation',
             date: typeof reservationRow.reservation_date === 'string' ? reservationRow.reservation_date : '',
             confirmationNumber: reservationRow.confirmation_no ? String(reservationRow.confirmation_no) : 'Pending',
+            placeId: reservationRow.place_id ? String(reservationRow.place_id) : '',
+          })),
+        )
+
+        setSavedPlaces(
+          placeRows.map((placeRow) => ({
+            id: String(placeRow.place_id),
+            name: typeof placeRow.place_name === 'string' ? placeRow.place_name : 'Untitled place',
           })),
         )
       })
@@ -95,6 +112,10 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
       return
     }
 
+    const linkedPlace = savedPlaces.find((place) => place.id === reservationData.linkedPlaceId)
+    const placeName = (linkedPlace?.name ?? reservationData.placeName).trim()
+    const placeId = reservationData.linkedPlaceId ? Number(reservationData.linkedPlaceId) : null
+
     try {
       setIsSubmitting(true)
       setError('')
@@ -102,12 +123,12 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
       if (selectedReservation) {
         const updatedReservation = await updateReservation(token, selectedReservation.id, {
           trip_id: Number(tripId),
-          provider: reservationData.placeName,
-          place_name: reservationData.placeName,
+          provider: placeName,
+          place_name: placeName,
           reservation_type: reservationData.type,
           reservation_date: reservationData.date || null,
           confirmation_no: reservationData.confirmationNumber,
-          place_id: null,
+          place_id: placeId,
         })
 
         setReservations((current) =>
@@ -120,9 +141,11 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
                       ? String(updatedReservation.reservation_type)
                       : reservationData.type,
                   placeName:
-                    typeof updatedReservation.place_name === 'string' && updatedReservation.place_name.trim()
-                      ? String(updatedReservation.place_name)
-                      : reservationData.placeName,
+                    typeof updatedReservation.linked_place_name === 'string' && updatedReservation.linked_place_name.trim()
+                      ? String(updatedReservation.linked_place_name)
+                      : typeof updatedReservation.place_name === 'string' && updatedReservation.place_name.trim()
+                        ? String(updatedReservation.place_name)
+                        : placeName,
                   date:
                     typeof updatedReservation.reservation_date === 'string'
                       ? updatedReservation.reservation_date
@@ -131,6 +154,7 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
                     typeof updatedReservation.confirmation_no === 'string' && updatedReservation.confirmation_no.trim()
                       ? String(updatedReservation.confirmation_no)
                       : reservationData.confirmationNumber,
+                  placeId: updatedReservation.place_id ? String(updatedReservation.place_id) : '',
                 }
               : reservation,
           ),
@@ -138,12 +162,12 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
       } else {
         const createdReservation = await createReservation(token, {
           trip_id: Number(tripId),
-          provider: reservationData.placeName,
-          place_name: reservationData.placeName,
+          provider: placeName,
+          place_name: placeName,
           reservation_type: reservationData.type,
           reservation_date: reservationData.date || null,
           confirmation_no: reservationData.confirmationNumber,
-          place_id: null,
+          place_id: placeId,
         })
 
         setReservations((current) => [
@@ -155,14 +179,17 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
                 ? String(createdReservation.reservation_type)
                 : reservationData.type,
             placeName:
-              typeof createdReservation.place_name === 'string' && createdReservation.place_name.trim()
-                ? String(createdReservation.place_name)
-                : reservationData.placeName,
+              typeof createdReservation.linked_place_name === 'string' && createdReservation.linked_place_name.trim()
+                ? String(createdReservation.linked_place_name)
+                : typeof createdReservation.place_name === 'string' && createdReservation.place_name.trim()
+                  ? String(createdReservation.place_name)
+                  : placeName,
             date: typeof createdReservation.reservation_date === 'string' ? createdReservation.reservation_date : reservationData.date,
             confirmationNumber:
               typeof createdReservation.confirmation_no === 'string' && createdReservation.confirmation_no.trim()
                 ? String(createdReservation.confirmation_no)
                 : reservationData.confirmationNumber,
+            placeId: createdReservation.place_id ? String(createdReservation.place_id) : '',
           },
         ])
       }
@@ -294,6 +321,7 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
         open={isReservationModalOpen}
         onClose={closeModal}
         onSubmitReservation={handleSubmitReservation}
+        savedPlaces={savedPlaces}
         initialValues={
           selectedReservation
             ? {
@@ -301,6 +329,7 @@ export default function ReservationsTab({ tripId }: { tripId: string }) {
                 placeName: selectedReservation.placeName,
                 date: selectedReservation.date,
                 confirmationNumber: selectedReservation.confirmationNumber,
+                linkedPlaceId: selectedReservation.placeId,
               }
             : undefined
         }

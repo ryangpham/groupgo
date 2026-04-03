@@ -110,6 +110,41 @@ export function getTripReservations(token: string, tripId: string) {
   return request<Array<Record<string, unknown>>>(`/trips/${tripId}/reservations`, { token })
 }
 
+export function getTripPlaces(token: string, tripId: string) {
+  return request<Array<Record<string, unknown>>>(`/trips/${tripId}/places`, { token })
+}
+
+export function createPlace(
+  token: string,
+  payload: {
+    trip_id: number
+    place_name: string
+    address?: string | null
+    rating?: number | null
+    place_type?: string | null
+  },
+) {
+  return request<Record<string, unknown>>('/places', { method: 'POST', token, body: payload })
+}
+
+export function updatePlace(
+  token: string,
+  placeId: string,
+  payload: {
+    trip_id?: number
+    place_name?: string | null
+    address?: string | null
+    rating?: number | null
+    place_type?: string | null
+  },
+) {
+  return request<Record<string, unknown>>(`/places/${placeId}`, { method: 'PUT', token, body: payload })
+}
+
+export function deletePlace(token: string, placeId: string) {
+  return request<Record<string, unknown>>(`/places/${placeId}`, { method: 'DELETE', token })
+}
+
 export function createReservation(
   token: string,
   payload: {

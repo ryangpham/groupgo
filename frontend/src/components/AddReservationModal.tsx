@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarDays, Hotel, ReceiptText, Ticket, Trash2 } from 'lucide-react'
+import { CalendarDays, Hotel, Link, ReceiptText, Ticket, Trash2 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader } from './ui/card'
 import { Input } from './ui/input'
@@ -10,12 +10,19 @@ export type ReservationFormData = {
   placeName: string
   date: string
   confirmationNumber: string
+  linkedPlaceId: string
+}
+
+type SavedPlaceOption = {
+  id: string
+  name: string
 }
 
 type AddReservationModalProps = {
   open: boolean
   onClose: () => void
   onSubmitReservation: (reservation: ReservationFormData) => void | Promise<void>
+  savedPlaces?: SavedPlaceOption[]
   initialValues?: ReservationFormData
   mode?: 'create' | 'edit'
   onDeleteReservation?: () => void | Promise<void>
@@ -28,12 +35,14 @@ const defaultState: ReservationFormData = {
   placeName: '',
   date: '',
   confirmationNumber: '',
+  linkedPlaceId: '',
 }
 
 export function AddReservationModal({
   open,
   onClose,
   onSubmitReservation,
+  savedPlaces = [],
   initialValues,
   mode = 'create',
   onDeleteReservation,
@@ -51,6 +60,8 @@ export function AddReservationModal({
     setFormData(values)
     onClose()
   }
+
+  const selectedPlace = savedPlaces.find((place) => place.id === formData.linkedPlaceId)
 
   return (
     <div className="modal-backdrop" onClick={handleClose} role="presentation">
@@ -91,6 +102,36 @@ export function AddReservationModal({
             </div>
 
             <div className="field-group">
+              <Label htmlFor="reservation-linked-place">Link saved place</Label>
+              <div className="input-icon-wrap input-select-wrap">
+                <Link size={18} />
+                <select
+                  id="reservation-linked-place"
+                  className="ui-select"
+                  value={formData.linkedPlaceId}
+                  onChange={(event) => {
+                    const nextPlaceId = event.target.value
+                    const nextPlace = savedPlaces.find((place) => place.id === nextPlaceId)
+
+                    setFormData((current) => ({
+                      ...current,
+                      linkedPlaceId: nextPlaceId,
+                      placeName: nextPlace ? nextPlace.name : current.placeName,
+                    }))
+                  }}
+                  disabled={isSubmitting || isDeleting}
+                >
+                  <option value="">None</option>
+                  {savedPlaces.map((place) => (
+                    <option key={place.id} value={place.id}>
+                      {place.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="field-group">
               <Label htmlFor="reservation-place">Place name</Label>
               <div className="input-icon-wrap">
                 <Ticket size={18} />
@@ -98,10 +139,10 @@ export function AddReservationModal({
                   id="reservation-place"
                   type="text"
                   placeholder="Alila Villas Uluwatu"
-                  value={formData.placeName}
+                  value={selectedPlace?.name ?? formData.placeName}
                   onChange={(event) => setFormData((current) => ({ ...current, placeName: event.target.value }))}
                   required
-                  disabled={isSubmitting || isDeleting}
+                  disabled={Boolean(selectedPlace) || isSubmitting || isDeleting}
                 />
               </div>
             </div>
