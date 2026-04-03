@@ -114,6 +114,11 @@ export function getTripPlaces(token: string, tripId: string) {
   return request<Array<Record<string, unknown>>>(`/trips/${tripId}/places`, { token })
 }
 
+export function searchTripPlaces(token: string, tripId: string, query: string) {
+  const searchParams = new URLSearchParams({ q: query })
+  return request<Array<Record<string, unknown>>>(`/trips/${tripId}/places/search?${searchParams.toString()}`, { token })
+}
+
 export function createPlace(
   token: string,
   payload: {

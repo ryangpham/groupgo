@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Bookmark, MapPin, Pencil, Plus, Search, Star } from 'lucide-react'
 import { AddPlaceModal, type PlaceFormData } from '../AddPlaceModal'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { Input } from '../ui/input'
 import { useAuth } from '../../hooks/useAuth'
-import { ApiError, createPlace, deletePlace, getTripPlaces, updatePlace } from '../../lib/api'
+import { ApiError, createPlace, deletePlace, getTripPlaces, searchTripPlaces, updatePlace } from '../../lib/api'
 
 type Place = {
   id: string
@@ -15,33 +15,24 @@ type Place = {
   type: string
 }
 
-const searchResults: Place[] = [
-  {
-    id: 'mock-3',
-    name: 'Tegalalang Rice Terrace',
-    rating: 4.6,
-    address: 'Tegalalang, Gianyar Regency, Bali',
-    type: 'Attraction',
-  },
-  {
-    id: 'mock-4',
-    name: 'Seminyak Beach',
-    rating: 4.4,
-    address: 'Seminyak, Kuta, Badung Regency, Bali',
-    type: 'Beach',
-  },
-  {
-    id: 'mock-5',
-    name: 'Waterbom Bali',
-    rating: 4.8,
-    address: 'Jl. Kartika Plaza, Kuta, Bali',
-    type: 'Water Park',
-  },
-]
+type SearchPlaceResult = Place & {
+  googlePlaceId: string
+}
 
 function mapPlaceRow(placeRow: Record<string, unknown>): Place {
   return {
     id: String(placeRow.place_id),
+    name: typeof placeRow.place_name === 'string' ? placeRow.place_name : 'Untitled place',
+    rating: typeof placeRow.rating === 'number' ? placeRow.rating : placeRow.rating ? Number(placeRow.rating) : null,
+    address: typeof placeRow.address === 'string' ? placeRow.address : '',
+    type: typeof placeRow.place_type === 'string' ? placeRow.place_type : '',
+  }
+}
+
+function mapSearchRow(placeRow: Record<string, unknown>): SearchPlaceResult {
+  return {
+    id: typeof placeRow.google_place_id === 'string' ? placeRow.google_place_id : crypto.randomUUID(),
+    googlePlaceId: typeof placeRow.google_place_id === 'string' ? placeRow.google_place_id : '',
     name: typeof placeRow.place_name === 'string' ? placeRow.place_name : 'Untitled place',
     rating: typeof placeRow.rating === 'number' ? placeRow.rating : placeRow.rating ? Number(placeRow.rating) : null,
     address: typeof placeRow.address === 'string' ? placeRow.address : '',
@@ -61,11 +52,13 @@ function toFormValues(place: Place): PlaceFormData {
 export default function PlacesTab({ tripId }: { tripId: string }) {
   const { token } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchPlaceResult[]>([])
   const [savedPlaces, setSavedPlaces] = useState<Place[]>([])
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null)
   const [isPlaceModalOpen, setIsPlaceModalOpen] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [isSearching, setIsSearching] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -81,11 +74,9 @@ export default function PlacesTab({ tripId }: { tripId: string }) {
 
     getTripPlaces(token, tripId)
       .then((placeRows) => {
-        if (cancelled) {
-          return
+        if (!cancelled) {
+          setSavedPlaces(placeRows.map((placeRow) => mapPlaceRow(placeRow)))
         }
-
-        setSavedPlaces(placeRows.map((placeRow) => mapPlaceRow(placeRow)))
       })
       .catch((apiError) => {
         if (!cancelled) {
@@ -103,15 +94,46 @@ export default function PlacesTab({ tripId }: { tripId: string }) {
     }
   }, [token, tripId])
 
-  const visibleResults = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return []
+  useEffect(() => {
+    if (!token) {
+      return
     }
 
-    return searchResults.filter((place) =>
-      `${place.name} ${place.address} ${place.type}`.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-  }, [searchQuery])
+    const query = searchQuery.trim()
+    if (query.length < 2) {
+      setSearchResults([])
+      setIsSearching(false)
+      return
+    }
+
+    let cancelled = false
+    setIsSearching(true)
+
+    const timeoutId = window.setTimeout(() => {
+      searchTripPlaces(token, tripId, query)
+        .then((placeRows) => {
+          if (!cancelled) {
+            setSearchResults(placeRows.map((placeRow) => mapSearchRow(placeRow)))
+          }
+        })
+        .catch((apiError) => {
+          if (!cancelled) {
+            setSearchResults([])
+            setError(apiError instanceof ApiError ? apiError.message : 'Unable to search places')
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setIsSearching(false)
+          }
+        })
+    }, 300)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeoutId)
+    }
+  }, [token, tripId, searchQuery])
 
   const closeModal = () => {
     setSelectedPlace(null)
@@ -128,7 +150,7 @@ export default function PlacesTab({ tripId }: { tripId: string }) {
     setIsPlaceModalOpen(true)
   }
 
-  const isSavedPlace = (place: Place) =>
+  const isSavedPlace = (place: Pick<Place, 'name' | 'address'>) =>
     savedPlaces.some(
       (savedPlace) =>
         savedPlace.name.trim().toLowerCase() === place.name.trim().toLowerCase() &&
@@ -187,7 +209,7 @@ export default function PlacesTab({ tripId }: { tripId: string }) {
     })
   }
 
-  const handleSaveSearchResult = async (place: Place) => {
+  const handleSaveSearchResult = async (place: SearchPlaceResult) => {
     if (isSavedPlace(place)) {
       return
     }
@@ -224,7 +246,7 @@ export default function PlacesTab({ tripId }: { tripId: string }) {
         <div className="trip-tab-intro">
           <p className="dashboard-kicker">Places</p>
           <h2>Search and save places to visit</h2>
-          <p>Saved places now persist to the backend so reservations and planning can reference the same trip place.</p>
+          <p>Search now uses Google Places, then saves selected results into your trip's own shared place list.</p>
         </div>
         <Button onClick={openCreateModal}>
           <Plus size={18} />
@@ -238,46 +260,61 @@ export default function PlacesTab({ tripId }: { tripId: string }) {
         <Search className="places-search-icon" size={18} />
         <Input
           type="text"
-          placeholder="Search places..."
+          placeholder="Search Google Places..."
           value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
+          onChange={(event) => {
+            setError('')
+            setSearchQuery(event.target.value)
+          }}
           className="places-search-input"
         />
       </div>
 
-      {visibleResults.length > 0 ? (
+      {searchQuery.trim().length >= 2 ? (
         <div className="places-section">
           <h3 className="places-section-title">Search Results</h3>
-          <div className="places-grid">
-            {visibleResults.map((place) => {
-              const alreadySaved = isSavedPlace(place)
+          {isSearching ? (
+            <div className="reservation-empty-state">
+              <Search size={40} />
+              <p>Searching Google Places...</p>
+            </div>
+          ) : searchResults.length > 0 ? (
+            <div className="places-grid">
+              {searchResults.map((place) => {
+                const alreadySaved = isSavedPlace(place)
 
-              return (
-                <Card key={place.id} className="place-card">
-                  <CardContent className="place-card-content">
-                    <div className="place-card-top">
-                      <h4>{place.name}</h4>
-                      <div className="place-rating">
-                        <Star size={14} />
-                        <span>{place.rating ?? 'N/A'}</span>
+                return (
+                  <Card key={place.googlePlaceId || place.id} className="place-card">
+                    <CardContent className="place-card-content">
+                      <div className="place-card-top">
+                        <h4>{place.name}</h4>
+                        <div className="place-rating">
+                          <Star size={14} />
+                          <span>{place.rating ?? 'N/A'}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="place-address">
-                      <MapPin size={15} />
-                      <p>{place.address || 'Address not stored yet'}</p>
-                    </div>
-                    <div className="place-card-footer">
-                      <span className="place-type-pill">{place.type || 'Place'}</span>
-                      <Button onClick={() => void handleSaveSearchResult(place)} disabled={alreadySaved || isSubmitting}>
-                        <Plus size={15} />
-                        <span>{alreadySaved ? 'Saved' : 'Save'}</span>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                      <div className="place-address">
+                        <MapPin size={15} />
+                        <p>{place.address || 'Address not available'}</p>
+                      </div>
+                      <div className="place-card-footer">
+                        <span className="place-type-pill">{place.type || 'Place'}</span>
+                        <Button onClick={() => void handleSaveSearchResult(place)} disabled={alreadySaved || isSubmitting}>
+                          <Plus size={15} />
+                          <span>{alreadySaved ? 'Saved' : 'Save'}</span>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="reservation-empty-state">
+              <Search size={40} />
+              <p>No Google Places matches found.</p>
+            </div>
+          )}
         </div>
       ) : null}
 
