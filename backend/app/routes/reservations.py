@@ -22,7 +22,8 @@ def handle_integrity_error(exc: IntegrityError):
 def list_reservations(_current_user: dict = Depends(get_current_user)):
     return fetch_all(
         """
-        SELECT reservation_id, trip_id, provider, confirmation_no, place_id
+        SELECT reservation_id, trip_id, provider, place_name, reservation_type,
+               reservation_date, confirmation_no, place_id
         FROM reservations
         ORDER BY provider NULLS LAST, reservation_id
         """
@@ -33,7 +34,8 @@ def list_reservations(_current_user: dict = Depends(get_current_user)):
 def get_reservation(reservation_id: int, _current_user: dict = Depends(get_current_user)):
     reservation = fetch_one(
         """
-        SELECT reservation_id, trip_id, provider, confirmation_no, place_id
+        SELECT reservation_id, trip_id, provider, place_name, reservation_type,
+               reservation_date, confirmation_no, place_id
         FROM reservations
         WHERE reservation_id = :reservation_id
         """,
@@ -48,10 +50,11 @@ def get_reservation(reservation_id: int, _current_user: dict = Depends(get_curre
 def list_trip_reservations(trip_id: int, _current_user: dict = Depends(get_current_user)):
     return fetch_all(
         """
-        SELECT reservation_id, trip_id, provider, confirmation_no, place_id
+        SELECT reservation_id, trip_id, provider, place_name, reservation_type,
+               reservation_date, confirmation_no, place_id
         FROM reservations
         WHERE trip_id = :trip_id
-        ORDER BY provider NULLS LAST, reservation_id
+        ORDER BY reservation_date NULLS LAST, provider NULLS LAST, reservation_id
         """,
         {"trip_id": trip_id},
     )
@@ -62,9 +65,14 @@ def create_reservation(reservation: ReservationCreate, _current_user: dict = Dep
     try:
         return execute_returning(
             """
-            INSERT INTO reservations (trip_id, provider, confirmation_no, place_id)
-            VALUES (:trip_id, :provider, :confirmation_no, :place_id)
-            RETURNING reservation_id, trip_id, provider, confirmation_no, place_id
+            INSERT INTO reservations (
+                trip_id, provider, place_name, reservation_type, reservation_date, confirmation_no, place_id
+            )
+            VALUES (
+                :trip_id, :provider, :place_name, :reservation_type, :reservation_date, :confirmation_no, :place_id
+            )
+            RETURNING reservation_id, trip_id, provider, place_name, reservation_type,
+                      reservation_date, confirmation_no, place_id
             """,
             reservation.model_dump(),
         )
@@ -76,7 +84,8 @@ def create_reservation(reservation: ReservationCreate, _current_user: dict = Dep
 def update_reservation(reservation_id: int, reservation: ReservationUpdate, _current_user: dict = Depends(get_current_user)):
     existing_reservation = fetch_one(
         """
-        SELECT reservation_id, trip_id, provider, confirmation_no, place_id
+        SELECT reservation_id, trip_id, provider, place_name, reservation_type,
+               reservation_date, confirmation_no, place_id
         FROM reservations
         WHERE reservation_id = :reservation_id
         """,
@@ -91,6 +100,17 @@ def update_reservation(reservation_id: int, reservation: ReservationUpdate, _cur
         "reservation_id": reservation_id,
         "trip_id": reservation.trip_id if reservation.trip_id is not None else reservation_row["trip_id"],
         "provider": reservation.provider if reservation.provider is not None else reservation_row["provider"],
+        "place_name": reservation.place_name if reservation.place_name is not None else reservation_row["place_name"],
+        "reservation_type": (
+            reservation.reservation_type
+            if reservation.reservation_type is not None
+            else reservation_row["reservation_type"]
+        ),
+        "reservation_date": (
+            reservation.reservation_date
+            if reservation.reservation_date is not None
+            else reservation_row["reservation_date"]
+        ),
         "confirmation_no": reservation.confirmation_no if reservation.confirmation_no is not None else reservation_row["confirmation_no"],
         "place_id": reservation.place_id if reservation.place_id is not None else reservation_row["place_id"],
     }
@@ -101,10 +121,14 @@ def update_reservation(reservation_id: int, reservation: ReservationUpdate, _cur
             UPDATE reservations
             SET trip_id = :trip_id,
                 provider = :provider,
+                place_name = :place_name,
+                reservation_type = :reservation_type,
+                reservation_date = :reservation_date,
                 confirmation_no = :confirmation_no,
                 place_id = :place_id
             WHERE reservation_id = :reservation_id
-            RETURNING reservation_id, trip_id, provider, confirmation_no, place_id
+            RETURNING reservation_id, trip_id, provider, place_name, reservation_type,
+                      reservation_date, confirmation_no, place_id
             """,
             updated_values,
         )
@@ -118,7 +142,8 @@ def delete_reservation(reservation_id: int, _current_user: dict = Depends(get_cu
         """
         DELETE FROM reservations
         WHERE reservation_id = :reservation_id
-        RETURNING reservation_id, trip_id, provider, confirmation_no, place_id
+        RETURNING reservation_id, trip_id, provider, place_name, reservation_type,
+                  reservation_date, confirmation_no, place_id
         """,
         {"reservation_id": reservation_id},
     )

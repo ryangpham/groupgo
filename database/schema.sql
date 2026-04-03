@@ -49,6 +49,20 @@ CREATE TABLE tasks (
     trip_id INTEGER NOT NULL,
     title TEXT NOT NULL,
     due_date DATE,
+    completed BOOLEAN NOT NULL DEFAULT FALSE,
+    assigned_user_id INTEGER,
+
+    FOREIGN KEY (trip_id) REFERENCES trips(trip_id),
+    FOREIGN KEY (assigned_user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE places (
+    place_id SERIAL PRIMARY KEY,
+    trip_id INTEGER NOT NULL,
+    place_name TEXT NOT NULL,
+    address TEXT,
+    rating NUMERIC(2, 1),
+    place_type TEXT,
 
     FOREIGN KEY (trip_id) REFERENCES trips(trip_id)
 );
@@ -57,6 +71,9 @@ CREATE TABLE reservations (
     reservation_id SERIAL PRIMARY KEY,
     trip_id INTEGER NOT NULL,
     provider TEXT,
+    place_name TEXT,
+    reservation_type TEXT,
+    reservation_date DATE,
     confirmation_no TEXT,
     place_id INTEGER,
 
