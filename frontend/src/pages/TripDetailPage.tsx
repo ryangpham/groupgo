@@ -207,7 +207,7 @@ export function TripDetailPage() {
                   <TasksTab members={members} tripId={displayTrip.id} />
                 </TabsContent>
                 <TabsContent value="places">
-                  <PlacesTab />
+                  <PlacesTab tripId={displayTrip.id} />
                 </TabsContent>
                 <TabsContent value="reservations">
                   <ReservationsTab tripId={displayTrip.id} />
