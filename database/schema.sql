@@ -19,6 +19,10 @@ CREATE TABLE trips(
 	end_date DATE,
 	
 	owner_user_id INTEGER NOT NULL,
+	destination_text TEXT,
+	destination_lat DOUBLE PRECISION,
+	destination_lng DOUBLE PRECISION,
+	
 	
 	FOREIGN KEY (owner_user_id) REFERENCES users(user_id),
 	
