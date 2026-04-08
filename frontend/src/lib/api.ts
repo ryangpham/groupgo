@@ -72,7 +72,15 @@ export function getTrip(token: string, tripId: string) {
 
 export function createTrip(
   token: string,
-  payload: { trip_name: string; destination?: string; start_date: string; end_date: string; owner_user_id: number },
+  payload: {
+    trip_name: string
+    destination_text?: string
+    destination_lat?: number | null
+    destination_lng?: number | null
+    start_date: string
+    end_date: string
+    owner_user_id: number
+  },
 ) {
   return request<Record<string, unknown>>('/trips', { method: 'POST', token, body: payload })
 }

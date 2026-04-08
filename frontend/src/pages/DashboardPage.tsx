@@ -57,7 +57,7 @@ export function DashboardPage() {
         const mappedTrips = tripRows.map((tripRow) => ({
           id: String(tripRow.trip_id),
           name: String(tripRow.trip_name),
-          destination: '',
+          destination: typeof tripRow.destination_text === 'string' ? tripRow.destination_text : '',
           startDate: typeof tripRow.start_date === 'string' ? tripRow.start_date : '',
           endDate: typeof tripRow.end_date === 'string' ? tripRow.end_date : '',
           memberCount: Number(tripRow.member_count ?? 1),
@@ -97,13 +97,15 @@ export function DashboardPage() {
         start_date: tripData.startDate,
         end_date: tripData.endDate,
         owner_user_id: user.user_id,
-        destination: tripData.destination,
+        destination_text: tripData.destination,
+        destination_lat: null,
+        destination_lng: null,
       })
 
       const newTrip: Trip = {
         id: String(createdTrip.trip_id),
         name: String(createdTrip.trip_name),
-        destination: tripData.destination,
+        destination: typeof createdTrip.destination_text === 'string' ? createdTrip.destination_text : tripData.destination,
         startDate: typeof createdTrip.start_date === 'string' ? createdTrip.start_date : '',
         endDate: typeof createdTrip.end_date === 'string' ? createdTrip.end_date : '',
         memberCount: Number(createdTrip.member_count ?? 1),

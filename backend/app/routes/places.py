@@ -138,9 +138,24 @@ def get_place_row(place_id: int):
     return cast(dict[str, Any], place)
 
 
+def get_trip_search_context(trip_id: int):
+    trip = fetch_one(
+        """
+        SELECT trip_id, destination_text, destination_lat, destination_lng
+        FROM trips
+        WHERE trip_id = :trip_id
+        """,
+        {"trip_id": trip_id},
+    )
+    if trip is None:
+        raise_trip_not_found()
+    return cast(dict[str, Any], trip)
+
+
 @router.get("/trips/{trip_id}/places/search")
 def search_google_places(trip_id: int, q: str, current_user: dict = Depends(get_current_user)):
     ensure_trip_access(trip_id, current_user)
+    trip = get_trip_search_context(trip_id)
 
     query = q.strip()
     if len(query) < 2:
@@ -149,10 +164,33 @@ def search_google_places(trip_id: int, q: str, current_user: dict = Depends(get_
     if not GOOGLE_PLACES_API_KEY:
         raise_google_places_not_configured()
 
+    autocomplete_input = query
+    autocomplete_body: dict[str, Any] = {
+        "input": autocomplete_input,
+        "includedPrimaryTypes": ["restaurant", "tourist_attraction", "lodging"],
+    }
+
+    destination_lat = trip.get("destination_lat")
+    destination_lng = trip.get("destination_lng")
+    destination_text = trip.get("destination_text")
+
+    if destination_lat is not None and destination_lng is not None:
+        autocomplete_body["locationBias"] = {
+            "circle": {
+                "center": {
+                    "latitude": float(destination_lat),
+                    "longitude": float(destination_lng),
+                },
+                "radius": 50000.0,
+            }
+        }
+    elif isinstance(destination_text, str) and destination_text.strip():
+        autocomplete_body["input"] = f"{query} near {destination_text.strip()}"
+
     autocomplete_payload = fetch_google_json(
         GOOGLE_AUTOCOMPLETE_URL,
         method="POST",
-        body={"input": query, "includedPrimaryTypes": ["restaurant", "tourist_attraction", "lodging"]},
+        body=autocomplete_body,
         field_mask="suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat",
     )
 
