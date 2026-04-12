@@ -12,7 +12,7 @@ import { Button } from '../components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { useAuth } from '../hooks/useAuth'
 import { parseDateOnly } from '../lib/date'
-import { ApiError, getTrip } from '../lib/api'
+import { ApiError, getTrip, getTripMembers, getTripOverview } from '../lib/api'
 import type { Trip } from '../types/trip'
 
 type Member = {
@@ -40,10 +40,15 @@ export function TripDetailPage() {
   const [error, setError] = useState('')
   const [isLoadingTrip, setIsLoadingTrip] = useState(true)
   const [trip, setTrip] = useState<Trip | null>(null)
-  const [invitedMembers, setInvitedMembers] = useState<Member[]>([
-    { id: '2', name: 'Jane Smith', initials: 'JS' },
-    { id: '3', name: 'Mike Johnson', initials: 'MJ' },
-  ])
+  const [invitedMembers, setInvitedMembers] = useState<Member[]>([])
+
+
+  const [overview, setOverview] = useState({
+    totalExpenses: 0,
+    tasksRemaining: 0,
+    totalTasks: 0,
+    upcomingReservations: 0,
+  })
 
   const members = useMemo<Member[]>(() => {
     const leadName = user?.display_name ?? 'You'
@@ -59,6 +64,9 @@ export function TripDetailPage() {
 
     let cancelled = false
 
+    setIsLoadingTrip(true)
+    setError('')
+
     getTrip(token, tripId)
       .then((tripRow) => {
         if (cancelled) {
@@ -68,8 +76,8 @@ export function TripDetailPage() {
         setTrip({
           id: String(tripRow.trip_id),
           name: String(tripRow.trip_name),
-          destination: '',
-          startDate: typeof tripRow.start_date === 'string' ? tripRow.start_date : '',
+          destination: typeof tripRow.destination_text === 'string' ? tripRow.destination_text: '',
+          startDate: typeof tripRow.start_date === 'string' ? tripRow.start_date : '',  
           endDate: typeof tripRow.end_date === 'string' ? tripRow.end_date : '',
           memberCount: Number(tripRow.member_count ?? 1),
         })
@@ -87,10 +95,48 @@ export function TripDetailPage() {
         }
       })
 
+      getTripMembers(token, tripId)
+        .then((memberRows) => {
+          if (cancelled) return
+
+          setInvitedMembers(
+            memberRows
+            .filter((m) => String(m.user_id) !== String(user?.user_id))
+            .map((m) => ({
+              id: String(m.user_id),
+              name: String(m.display_name),
+              initials: getInitials(String(m.display_name)),
+            })),
+          )
+      })
+      .catch((apiError) => {
+        if(!cancelled) {
+          setError(apiError instanceof ApiError ? apiError.message: 'Unable to load members')
+        }
+      })
+
+      getTripOverview(token, tripId)
+        .then((overviewRow) => {
+          if (cancelled) return
+
+          setOverview({
+            totalExpenses: Number(overviewRow.total_expenses ?? 0),
+            tasksRemaining: Number(overviewRow.tasks_remaining ?? 0),
+            totalTasks: Number(overviewRow.total_tasks ?? 0),
+            upcomingReservations: Number(overviewRow.upcoming_reservations ?? 0),
+          })
+        })
+        .catch((apiError) => {
+          if (!cancelled) {
+            setError(apiError instanceof ApiError ? apiError.message : 'Unable to load overview')
+          }
+        })
+
+
     return () => {
       cancelled = true
     }
-  }, [token, tripId])
+  }, [token, tripId, user?.user_id])
 
   const displayTrip = useMemo<Trip>(
     () =>
@@ -201,7 +247,7 @@ export function TripDetailPage() {
                 </TabsList>
 
                 <TabsContent value="overview">
-                  <OverviewTab trip={displayTrip} members={members} />
+                  <OverviewTab trip={displayTrip} members={members} overview={overview} />
                 </TabsContent>
                 <TabsContent value="tasks">
                   <TasksTab members={members} tripId={displayTrip.id} />

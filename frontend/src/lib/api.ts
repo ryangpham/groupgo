@@ -81,6 +81,15 @@ export function getTripTasks(token: string, tripId: string) {
   return request<Array<Record<string, unknown>>>(`/trips/${tripId}/tasks`, { token })
 }
 
+export function getTripMembers(token: string, tripId: string)
+{
+  return request<Array<Record<string, unknown>>>(`/trips/${tripId}/members`, { token })
+}
+
+export function getTripOverview(token: string, tripId: string) {
+  return request<Record<string, unknown>>(`/trips/${tripId}/overview`, { token })
+}
+
 export function createTask(
   token: string,
   payload: { trip_id: number; title: string; due_date: string | null; completed?: boolean; assigned_user_id?: number | null },
@@ -184,3 +193,6 @@ export function updateReservation(
 export function deleteReservation(token: string, reservationId: string) {
   return request<Record<string, unknown>>(`/reservations/${reservationId}`, { method: 'DELETE', token })
 }
+
+
+

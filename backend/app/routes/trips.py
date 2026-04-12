@@ -114,6 +114,126 @@ def get_user_trips(user_id: int, current_user: dict = Depends(get_current_user))
         {"user_id": user_id}
     )
 
+# Use this when expenses table is set up
+# @router.get("/trips/{trip_id}/overview")
+# def get_trip_overview(trip_id: int, _current_user: dict = Depends(get_current_user)):
+#     trip = fetch_one(
+#         """
+#         SELECT trip_id
+#         FROM trips
+#         WHERE trip_id = :trip_id
+#         """,
+#         {"trip_id": trip_id}
+#     )
+#     if not trip:
+#         raise_not_found()
+
+#     overview = fetch_one(
+#         """
+#         SELECT
+#             COALESCE((
+#                 SELECT SUM(e.amount)
+#                 FROM expenses e
+#                 WHERE e.trip_id = :trip_id
+#             ), 0) AS total_expenses,
+
+#             COALESCE((
+#                 SELECT COUNT(*)
+#                 FROM tasks t
+#                 WHERE t.trip_id = :trip_id
+#                   AND (t.completed = FALSE OR t.completed IS NULL)
+#             ), 0) AS tasks_remaining,
+
+#             COALESCE((
+#                 SELECT COUNT(*)
+#                 FROM tasks t
+#                 WHERE t.trip_id = :trip_id
+#             ), 0) AS total_tasks,
+
+#             COALESCE((
+#                 SELECT COUNT(*)
+#                 FROM reservations r
+#                 WHERE r.trip_id = :trip_id
+#                   AND r.reservation_date >= CURRENT_DATE
+#             ), 0) AS upcoming_reservations
+#         """,
+#         {"trip_id": trip_id}
+#     )
+
+#     return overview
+
+
+@router.get("/trips/{trip_id}/overview")
+def get_trip_overview(trip_id: int, _current_user: dict = Depends(get_current_user)):
+    trip = fetch_one(
+        """
+        SELECT trip_id
+        FROM trips
+        WHERE trip_id = :trip_id
+        """,
+        {"trip_id": trip_id}
+    )
+    if not trip:
+        raise_not_found()
+
+    overview = fetch_one(
+        """
+        SELECT
+            0 AS total_expenses,
+
+            COALESCE((
+                SELECT COUNT(*)
+                FROM tasks t
+                WHERE t.trip_id = :trip_id
+                  AND (t.completed = FALSE OR t.completed IS NULL)
+            ), 0) AS tasks_remaining,
+
+            COALESCE((
+                SELECT COUNT(*)
+                FROM tasks t
+                WHERE t.trip_id = :trip_id
+            ), 0) AS total_tasks,
+
+            COALESCE((
+                SELECT COUNT(*)
+                FROM reservations r
+                WHERE r.trip_id = :trip_id
+                    AND r.reservation_date >= CURRENT_DATE
+            ), 0) AS upcoming_reservations
+        """,
+        {"trip_id": trip_id}
+    )
+
+    return overview
+
+@router.get("/trips/{trip_id}/members")
+def get_trip_members(trip_id: int, _current_user: dict = Depends(get_current_user)):
+    trip = fetch_one(
+        """
+        SELECT trip_id
+        FROM trips
+        WHERE trip_id = :trip_id
+        """,
+        {"trip_id": trip_id}
+    )
+    if not trip:
+        raise_not_found()
+
+    return fetch_all(
+        """
+        SELECT u.user_id,
+               u.display_name,
+               u.email,
+               r.role_name,
+               m.joined_at
+        FROM memberships m
+        JOIN users u ON m.user_id = u.user_id
+        JOIN roles r ON m.role_id = r.role_id
+        WHERE m.trip_id = :trip_id
+        ORDER BY u.display_name
+        """,
+        {"trip_id": trip_id}
+    )
 
 @router.post("/trips", status_code=201)
 def create_trip(trip: TripCreate, current_user: dict = Depends(get_current_user)):

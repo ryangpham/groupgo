@@ -1,6 +1,7 @@
-import { Calendar, CheckSquare, DollarSign } from 'lucide-react'
+import { Calendar, CheckSquare, DollarSign, PinIcon } from 'lucide-react'
 import type { Trip } from '../../types/trip'
 import { Card, CardContent } from '../ui/card'
+
 
 type Member = {
   id: string
@@ -8,23 +9,32 @@ type Member = {
   initials: string
 }
 
-export default function OverviewTab({ trip, members }: { trip: Trip; members: Member[] }) {
+export default function OverviewTab({ trip, members, overview,}: {
+  trip: Trip
+  members: Member[]
+  overview: {
+    totalExpenses: number
+    tasksRemaining: number
+    totalTasks: number
+    upcomingReservations: number
+  }
+  }) {
   const summaryData = [
     {
       title: 'Total Expenses',
-      value: '$3,245',
+      value: `$${overview.totalExpenses.toLocaleString()}`,
       icon: DollarSign,
       description: 'Across all members',
     },
     {
       title: 'Tasks Remaining',
-      value: '7',
+      value: String(overview.tasksRemaining),
       icon: CheckSquare,
-      description: 'Out of 12 total tasks',
+      description: `Out of ${overview.totalTasks} total tasks`,
     },
     {
       title: 'Upcoming Reservations',
-      value: '4',
+      value: String(overview.upcomingReservations),
       icon: Calendar,
       description: 'Hotels, restaurants, and activities',
     },
