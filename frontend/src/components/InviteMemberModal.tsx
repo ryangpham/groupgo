@@ -13,9 +13,11 @@ type InviteMemberModalProps = {
 
 export function InviteMemberModal({ open, onClose, onInvite }: InviteMemberModalProps) {
   const [email, setEmail] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const handleClose = () => {
     setEmail('')
+    setSubmitting(false)
     onClose()
   }
 
@@ -26,16 +28,36 @@ export function InviteMemberModal({ open, onClose, onInvite }: InviteMemberModal
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        onClose()
+        handleClose()
       }
     }
 
     document.addEventListener('keydown', handleEscape)
     return () => document.removeEventListener('keydown', handleEscape)
-  }, [onClose, open])
+  }, [open])
 
   if (!open) {
     return null
+  }
+
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>)
+  {
+      event.preventDefault()
+
+      const trimmedEmail = email.trim()
+      if(!trimmedEmail) return
+
+      try
+      {
+          setSubmitting(true)
+          await onInvite(trimmedEmail)
+          handleClose()
+      } catch (error)
+      {
+        console.error('Error Inviting Member:', error)
+        setSubmitting(false)
+      }
   }
 
   return (
@@ -51,14 +73,7 @@ export function InviteMemberModal({ open, onClose, onInvite }: InviteMemberModal
         </CardHeader>
 
         <CardContent>
-          <form
-            className="auth-form"
-            onSubmit={(event) => {
-              event.preventDefault()
-              onInvite(email)
-              setEmail('')
-            }}
-          >
+          <form className="auth-form" onSubmit={handleSubmit}>
             <div className="field-group">
               <Label htmlFor="invite-email">Email</Label>
               <div className="input-icon-wrap">
@@ -70,15 +85,18 @@ export function InviteMemberModal({ open, onClose, onInvite }: InviteMemberModal
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required
+                  disabled={submitting}
                 />
               </div>
             </div>
 
             <div className="modal-actions">
-              <Button type="button" variant="ghost" onClick={handleClose}>
+              <Button type="button" variant="ghost" onClick={handleClose} disabled={submitting}>
                 Cancel
               </Button>
-              <Button type="submit">Send Invite</Button>
+              <Button type="submit" disabled={submitting || !email.trim()}>
+                {submitting ? 'Sending...' : 'Send Invite'}
+              </Button>
             </div>
           </form>
         </CardContent>

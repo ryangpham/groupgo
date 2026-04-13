@@ -12,7 +12,7 @@ import { Button } from '../components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { useAuth } from '../hooks/useAuth'
 import { parseDateOnly } from '../lib/date'
-import { ApiError, getTrip, getTripMembers, getTripOverview } from '../lib/api'
+import { ApiError, getTrip, getTripMembers, getTripOverview, inviteTripMember } from '../lib/api'
 import type { Trip } from '../types/trip'
 
 type Member = {
@@ -162,15 +162,30 @@ export function TripDetailPage() {
     return `${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
   }
 
-  const handleInviteMember = (email: string) => {
-    const newMember = {
-      id: `temp-${invitedMembers.length + 1}`,
-      name: email.split('@')[0],
-      initials: email.slice(0, 2).toUpperCase(),
-    }
+  const handleInviteMember = async (email: string) => {
+    if(!token || !tripId) return
 
-    setInvitedMembers((current) => [...current, newMember])
-    setIsInviteModalOpen(false)
+    setError('')
+
+    try{
+      await inviteTripMember(token, tripId, email)
+
+      const memberRow = await getTripMembers(token, tripId)
+
+      setInvitedMembers(
+        memberRow
+        .filter((m) => String(m.user_id) !== String(user?.user_id))
+        .map((m) => ({
+          id: String(m.user_id),
+          name: String(m.display_name),
+          initials: getInitials(String(m.display_name)),
+        }))
+      )
+    }catch (apiError)
+    {
+      setError(apiError instanceof ApiError ? apiError.message: 'Unable to add member')
+      throw apiError
+    }
   }
 
   return (
@@ -208,7 +223,7 @@ export function TripDetailPage() {
 
             <Button onClick={() => setIsInviteModalOpen(true)}>
               <UserPlus size={16} />
-              <span>Invite</span>
+              <span>Add</span>
             </Button>
           </div>
         </div>

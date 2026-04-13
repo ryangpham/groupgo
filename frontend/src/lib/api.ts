@@ -86,6 +86,31 @@ export function getTripMembers(token: string, tripId: string)
   return request<Array<Record<string, unknown>>>(`/trips/${tripId}/members`, { token })
 }
 
+
+export async function inviteTripMember(token: string, trip_id: string, email: string)
+{
+  const response = await fetch(`${API_BASE_URL}/trips/${trip_id}/invite`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({email}),
+    })
+
+    const data = await response.json()
+
+    if(!response.ok)
+    {
+      throw new ApiError(
+      typeof data?.detail === 'string' ? data.detail : 'Unable to Add member',
+      response.status,
+      )
+    }
+
+    return data
+}
+
 export function getTripOverview(token: string, tripId: string) {
   return request<Record<string, unknown>>(`/trips/${tripId}/overview`, { token })
 }

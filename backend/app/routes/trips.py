@@ -10,8 +10,8 @@ from app.security import get_current_user
 router = APIRouter(tags=["trips"])
 
 
-def raise_not_found():
-    raise HTTPException(status_code=404, detail="Trip not found")
+def raise_not_found(detail: str = "Trip not found"):
+    raise HTTPException(status_code=404, detail=detail)
 
 
 def handle_integrity_error(exc: IntegrityError):
@@ -19,7 +19,6 @@ def handle_integrity_error(exc: IntegrityError):
         status_code=400,
         detail="Request violates database constraints"
     ) from exc
-
 
 @router.get("/trips")
 def list_trips(_current_user: dict = Depends(get_current_user)):
@@ -307,6 +306,125 @@ def create_trip(trip: TripCreate, current_user: dict = Depends(get_current_user)
 
     except IntegrityError as exc:
         handle_integrity_error(exc)
+
+
+@router.post("/trips/{trip_id}/invite")
+def invite_member(trip_id: int, payload: dict, current_user: dict = Depends(get_current_user)):
+    #Make sure the trip exists
+    trip = fetch_one(
+        """
+        SELECT trip_id, owner_user_id
+        FROM trips
+        WHERE trip_id = :trip_id
+        """,
+        {"trip_id": trip_id},
+    )
+
+    if not trip:
+        raise_not_found("Trip not found")
+
+
+    # Get email from request body
+    email = str(payload.get("email", "")).strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    #Make sure current user is allowed to add members
+    membership = fetch_one(
+        """
+        SELECT user_id
+        FROM memberships
+        WHERE trip_id = :trip_id
+            AND user_id = :user_id
+        """,
+        {
+            "trip_id": trip_id,
+            "user_id": current_user["user_id"]
+        },
+    )
+
+    if not membership and str(trip["owner_user_id"]) != str(current_user["user_id"]):
+        raise HTTPException(status_code=403, detail="You do not have access to add members to this trip")
+
+    #Find the added user by email
+    added_user = fetch_one(
+        """
+        SELECT user_id, display_name, email
+        FROM users
+        WHERE LOWER(email) = LOWER(:email)
+        """,
+        {"email": email},
+    )
+    if not added_user:
+        raise_not_found("User with this email not found")
+
+    #Prevent Inviting yourself
+    if str(added_user["user_id"]) == str(current_user["user_id"]):
+        raise HTTPException(status_code=400, detail="You cannot add yourself")
+    
+    #Prevent duplicates 
+    existing_member = fetch_one(
+        """
+        SELECT user_id
+        FROM memberships
+        WHERE trip_id = :trip_id
+            AND user_id = :user_id
+        """,
+        {
+            "trip_id": trip_id,
+            "user_id": added_user["user_id"]
+        },
+    )
+
+    if existing_member:
+        raise HTTPException(status_code=400, detail="This user is already a member of the trip")
+
+    #Find a defualt role for the new member
+    default_role = fetch_one(
+        """
+        SELECT role_id
+        FROM roles
+        WHERE role_name = 'member'
+        """
+    )
+
+    if not default_role:
+        default_role = fetch_one(
+            """
+            SELECT role_id
+            FROM roles
+            ORDER BY role_id
+            LIMIT 1
+            """,
+            {},
+        )
+    if not default_role:
+        raise HTTPException(status_code=500, detail="No roles defined in the system")
+
+    #Add the new member to the trip
+    execute_returning(
+        """
+        INSERT INTO memberships(user_id, trip_id, role_id)
+        VALUES (:user_id, :trip_id, :role_id)
+        RETURNING user_id, trip_id, role_id, joined_at
+        """,
+        {
+            "user_id": added_user["user_id"],
+            "trip_id": trip_id,
+            "role_id": default_role["role_id"],
+        },
+    )
+
+
+    return {
+        "message": "Member added successfully",
+        "member": {
+            "user_id": added_user["user_id"],
+            "trip_id": trip_id,
+            "role_id": default_role["role_id"],
+        },
+    }
+
 
 
 @router.put("/trips/{trip_id}")
