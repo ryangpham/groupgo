@@ -76,8 +76,8 @@ export function TripDetailPage() {
         setTrip({
           id: String(tripRow.trip_id),
           name: String(tripRow.trip_name),
-          destination: typeof tripRow.destination_text === 'string' ? tripRow.destination_text: '',
-          startDate: typeof tripRow.start_date === 'string' ? tripRow.start_date : '',  
+          destination: typeof tripRow.destination_text === 'string' ? tripRow.destination_text : '',
+          startDate: typeof tripRow.start_date === 'string' ? tripRow.start_date : '',
           endDate: typeof tripRow.end_date === 'string' ? tripRow.end_date : '',
           memberCount: Number(tripRow.member_count ?? 1),
         })
