@@ -84,3 +84,26 @@ CREATE TABLE reservations (
     FOREIGN KEY (trip_id) REFERENCES trips(trip_id),
     FOREIGN KEY (place_id) REFERENCES places(place_id)
 );
+
+CREATE TABLE expenses (
+    expense_id SERIAL PRIMARY KEY,
+    trip_id INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    amount NUMERIC(10, 2) NOT NULL CHECK (amount >= 0),
+    expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    paid_by_user_id INTEGER NOT NULL,
+
+    FOREIGN KEY (trip_id) REFERENCES trips(trip_id) ON DELETE CASCADE,
+    FOREIGN KEY (paid_by_user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE expense_splits (
+    expense_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    owed_amount NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (owed_amount >= 0),
+    paid_amount NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (paid_amount >= 0),
+
+    PRIMARY KEY (expense_id, user_id),
+    FOREIGN KEY (expense_id) REFERENCES expenses(expense_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);

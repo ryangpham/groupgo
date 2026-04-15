@@ -18,15 +18,18 @@ type AddExpenseModalProps = {
   onAddExpense: (expenseData: {
     description: string
     amount: number
+    expenseDate: string
     paidById: string
     splitBetweenIds: string[]
-  }) => void
+  }) => void | Promise<void>
   members: Member[]
+  isSubmitting?: boolean
 }
 
-export function AddExpenseModal({ open, onClose, onAddExpense, members }: AddExpenseModalProps) {
+export function AddExpenseModal({ open, onClose, onAddExpense, members, isSubmitting = false }: AddExpenseModalProps) {
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
+  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [paidById, setPaidById] = useState(members[0]?.id ?? '')
   const [splitBetweenIds, setSplitBetweenIds] = useState<string[]>(() => members.map((member) => member.id))
 
@@ -39,6 +42,7 @@ export function AddExpenseModal({ open, onClose, onAddExpense, members }: AddExp
   const reset = () => {
     setDescription('')
     setAmount('')
+    setExpenseDate(new Date().toISOString().slice(0, 10))
     setPaidById(members[0]?.id ?? '')
     setSplitBetweenIds(memberIds)
   }
@@ -69,11 +73,12 @@ export function AddExpenseModal({ open, onClose, onAddExpense, members }: AddExp
         <CardContent>
           <form
             className="auth-form"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault()
-              onAddExpense({
+              await onAddExpense({
                 description,
                 amount: Number(amount),
+                expenseDate,
                 paidById,
                 splitBetweenIds: splitBetweenIds.length > 0 ? splitBetweenIds : memberIds,
               })
@@ -91,6 +96,7 @@ export function AddExpenseModal({ open, onClose, onAddExpense, members }: AddExp
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -109,8 +115,21 @@ export function AddExpenseModal({ open, onClose, onAddExpense, members }: AddExp
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
+              </div>
+
+              <div className="field-group">
+                <Label htmlFor="expense-date">Date</Label>
+                <Input
+                  id="expense-date"
+                  type="date"
+                  value={expenseDate}
+                  onChange={(event) => setExpenseDate(event.target.value)}
+                  required
+                  disabled={isSubmitting}
+                />
               </div>
 
               <div className="field-group">
@@ -123,6 +142,7 @@ export function AddExpenseModal({ open, onClose, onAddExpense, members }: AddExp
                     value={paidById}
                     onChange={(event) => setPaidById(event.target.value)}
                     required
+                    disabled={isSubmitting}
                   >
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>
@@ -146,6 +166,7 @@ export function AddExpenseModal({ open, onClose, onAddExpense, members }: AddExp
                     <Checkbox
                       checked={splitBetweenIds.includes(member.id)}
                       onChange={() => toggleSplitMember(member.id)}
+                      disabled={isSubmitting}
                     />
                   </label>
                 ))}
@@ -153,10 +174,10 @@ export function AddExpenseModal({ open, onClose, onAddExpense, members }: AddExp
             </div>
 
             <div className="modal-actions">
-              <Button type="button" variant="ghost" onClick={handleClose}>
+              <Button type="button" variant="ghost" onClick={handleClose} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="submit">Add Expense</Button>
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Adding...' : 'Add Expense'}</Button>
             </div>
           </form>
         </CardContent>

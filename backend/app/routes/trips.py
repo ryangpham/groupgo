@@ -178,7 +178,11 @@ def get_trip_overview(trip_id: int, _current_user: dict = Depends(get_current_us
     overview = fetch_one(
         """
         SELECT
-            0 AS total_expenses,
+            COALESCE((
+                SELECT SUM(e.amount)
+                FROM expenses e
+                WHERE e.trip_id = :trip_id
+            ), 0) AS total_expenses,
 
             COALESCE((
                 SELECT COUNT(*)

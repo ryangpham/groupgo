@@ -1,4 +1,4 @@
-import { Calendar, CheckSquare, DollarSign, PinIcon } from 'lucide-react'
+import { Calendar, CheckSquare, DollarSign } from 'lucide-react'
 import type { Trip } from '../../types/trip'
 import { Card, CardContent } from '../ui/card'
 

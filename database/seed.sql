@@ -1,5 +1,5 @@
 -- Initial seed data goes here.
-TRUNCATE TABLE reservations, tasks, places, memberships, trips, users, roles RESTART IDENTITY CASCADE;
+TRUNCATE TABLE expense_splits, expenses, reservations, tasks, places, memberships, trips, users, roles RESTART IDENTITY CASCADE;
 
 -- All seeded users use the password: groupgo123
 
@@ -10,7 +10,7 @@ VALUES ('owner'),
 
 INSERT INTO users(email, display_name, password_hash)
 VALUES ('johnsmith99@gmail.com', 'John Smith', '$2b$12$9Uvl6JMD7lyNCqkxqE2MC.I7sSvD83ljlZ2eUXyJkhQDyiHLnFJcG'),
-('larplarplarpsahur@gmail.com', 'Charlie Kirk', '$2b$12$9Uvl6JMD7lyNCqkxqE2MC.I7sSvD83ljlZ2eUXyJkhQDyiHLnFJcG'),
+('larplarplarpsahur@gmail.com', 'Charlie Brown', '$2b$12$9Uvl6JMD7lyNCqkxqE2MC.I7sSvD83ljlZ2eUXyJkhQDyiHLnFJcG'),
 ('andrii05@gmail.com', 'Andrii', '$2b$12$9Uvl6JMD7lyNCqkxqE2MC.I7sSvD83ljlZ2eUXyJkhQDyiHLnFJcG');
 
 INSERT INTO trips(trip_name, start_date, end_date, owner_user_id)
@@ -112,4 +112,53 @@ VALUES (
 		'2026-07-19',
 		'SVT-123456',
 		(SELECT place_id FROM places WHERE place_name = 'Sunrise Volcano Trekking')
+);
+
+INSERT INTO expenses(trip_id, description, amount, expense_date, paid_by_user_id)
+VALUES (
+		(SELECT trip_id FROM trips WHERE trip_name = 'Valhalla'),
+		'Villa deposit',
+		900.00,
+		'2026-04-25',
+		(SELECT user_id FROM users WHERE email = 'larplarplarpsahur@gmail.com')
+), (
+		(SELECT trip_id FROM trips WHERE trip_name = 'Valhalla'),
+		'Airport transfer',
+		120.00,
+		'2026-04-26',
+		(SELECT user_id FROM users WHERE email = 'johnsmith99@gmail.com')
+);
+
+INSERT INTO expense_splits(expense_id, user_id, owed_amount, paid_amount)
+VALUES
+(
+		1,
+		(SELECT user_id FROM users WHERE email = 'larplarplarpsahur@gmail.com'),
+		300.00,
+		900.00
+), (
+		1,
+		(SELECT user_id FROM users WHERE email = 'johnsmith99@gmail.com'),
+		300.00,
+		0.00
+), (
+		1,
+		(SELECT user_id FROM users WHERE email = 'andrii05@gmail.com'),
+		300.00,
+		0.00
+), (
+		2,
+		(SELECT user_id FROM users WHERE email = 'larplarplarpsahur@gmail.com'),
+		40.00,
+		0.00
+), (
+		2,
+		(SELECT user_id FROM users WHERE email = 'johnsmith99@gmail.com'),
+		40.00,
+		120.00
+), (
+		2,
+		(SELECT user_id FROM users WHERE email = 'andrii05@gmail.com'),
+		40.00,
+		0.00
 );

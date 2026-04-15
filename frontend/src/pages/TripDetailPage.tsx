@@ -274,7 +274,7 @@ export function TripDetailPage() {
                   <ReservationsTab tripId={displayTrip.id} />
                 </TabsContent>
                 <TabsContent value="expenses">
-                  <ExpensesTab members={members} />
+                  <ExpensesTab members={members} tripId={displayTrip.id} />
                 </TabsContent>
               </Tabs>
             </section>

@@ -3,7 +3,7 @@ import type { AuthResponse, AuthUser } from '../types/auth'
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   token?: string | null
   body?: unknown
 }
@@ -123,6 +123,45 @@ export function getTripOverview(token: string, tripId: string) {
   return request<Record<string, unknown>>(`/trips/${tripId}/overview`, { token })
 }
 
+export function getTripExpenses(token: string, tripId: string) {
+  return request<Array<Record<string, unknown>>>(`/trips/${tripId}/expenses`, { token })
+}
+
+export function getTripExpenseSummary(token: string, tripId: string) {
+  return request<Record<string, unknown>>(`/trips/${tripId}/expenses/summary`, { token })
+}
+
+export function createExpense(
+  token: string,
+  payload: {
+    trip_id: number
+    description: string
+    amount: number
+    expense_date: string
+    paid_by_user_id: number
+    splits: Array<{
+      user_id: number
+      owed_amount: number
+      paid_amount: number
+    }>
+  },
+) {
+  return request<Record<string, unknown>>('/expenses', { method: 'POST', token, body: payload })
+}
+
+export function updateExpensePayment(
+  token: string,
+  expenseId: string,
+  userId: string,
+  payload: { paid_amount: number },
+) {
+  return request<Record<string, unknown>>(`/expenses/${expenseId}/splits/${userId}/payment`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  })
+}
+
 export function createTask(
   token: string,
   payload: { trip_id: number; title: string; due_date: string | null; completed?: boolean; assigned_user_id?: number | null },
@@ -226,6 +265,4 @@ export function updateReservation(
 export function deleteReservation(token: string, reservationId: string) {
   return request<Record<string, unknown>>(`/reservations/${reservationId}`, { method: 'DELETE', token })
 }
-
-
 
