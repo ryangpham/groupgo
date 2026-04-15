@@ -1,0 +1,22 @@
+{
+    "trip_id": 1,
+    "amount": 120.00,
+    "expense_date": "2026-04-14",
+    "splits": [
+      {
+        "user_id": 1,
+        "owed_amount": 40.00,
+        "paid_amount": 40.00
+      },
+      {
+        "user_id": 2,
+        "owed_amount": 40.00,
+        "paid_amount": 20.00
+      },
+      {
+        "user_id": 3,
+        "owed_amount": 40.00,
+        "paid_amount": 0.00
+      }
+    ]
+  }
