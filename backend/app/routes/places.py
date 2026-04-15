@@ -16,7 +16,6 @@ from app.security import get_current_user
 router = APIRouter(tags=["places"])
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 GOOGLE_AUTOCOMPLETE_URL = "https://places.googleapis.com/v1/places:autocomplete"
-GOOGLE_DETAILS_URL = "https://places.googleapis.com/v1/places"
 
 
 def raise_place_not_found():
@@ -70,29 +69,6 @@ def fetch_google_json(
         raise HTTPException(status_code=502, detail="Unable to reach Google Places") from exc
 
     return payload
-
-
-def fetch_google_place_details(google_place_id: str):
-    if not GOOGLE_PLACES_API_KEY:
-        raise_google_places_not_configured()
-
-    payload = fetch_google_json(
-        f"{GOOGLE_DETAILS_URL}/{google_place_id}",
-        field_mask="id,displayName,formattedAddress,rating,types",
-    )
-
-    place_types = payload.get("types") or []
-    primary_type = place_types[0].replace("_", " ").title() if place_types else None
-    display_name = payload.get("displayName") or {}
-    name_text = display_name.get("text") if isinstance(display_name, dict) else None
-
-    return {
-        "google_place_id": payload.get("id", google_place_id),
-        "place_name": name_text or "Untitled place",
-        "address": payload.get("formattedAddress") or "",
-        "rating": payload.get("rating"),
-        "place_type": primary_type,
-    }
 
 
 def ensure_trip_access(trip_id: int, current_user: dict[str, Any]):
@@ -203,18 +179,18 @@ def search_google_places(trip_id: int, q: str, current_user: dict = Depends(get_
         if not isinstance(google_place_id, str) or not google_place_id:
             continue
 
-        details = fetch_google_place_details(google_place_id)
+        prediction_text = (place_prediction.get("text") or {}).get("text")
         structured_formatting = place_prediction.get("structuredFormat") or {}
         main_text = (structured_formatting.get("mainText") or {}).get("text")
         secondary_text = (structured_formatting.get("secondaryText") or {}).get("text")
 
         results.append(
             {
-                "google_place_id": details["google_place_id"],
-                "place_name": main_text if isinstance(main_text, str) and main_text else details["place_name"],
-                "address": secondary_text if isinstance(secondary_text, str) and secondary_text else details["address"],
-                "rating": details["rating"],
-                "place_type": details["place_type"],
+                "google_place_id": google_place_id,
+                "place_name": main_text if isinstance(main_text, str) and main_text else prediction_text or "Untitled place",
+                "address": secondary_text if isinstance(secondary_text, str) else "",
+                "rating": None,
+                "place_type": None,
             }
         )
 
