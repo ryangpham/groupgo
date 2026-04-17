@@ -12,24 +12,64 @@ type Member = {
   initials: string
 }
 
+export type ExpenseFormSplit = {
+  userId: string
+  owedAmount: number
+}
+
+export type ExpenseFormData = {
+  description: string
+  amount: number
+  expenseDate: string
+  paidById: string
+  splits: ExpenseFormSplit[]
+}
+
+export type ExpenseInitialValues = {
+  description: string
+  amount: number
+  expenseDate: string
+  paidById: string
+  splits: ExpenseFormSplit[]
+}
+
+function roundToCents(value: number) {
+  return Math.round(value * 100) / 100
+}
+
+function formatMoneyInput(value: number) {
+  return roundToCents(value).toFixed(2)
+}
+
+function buildEvenSplitAmounts(amount: number, selectedMemberIds: string[]) {
+  if (selectedMemberIds.length === 0) {
+    return {} as Record<string, string>
+  }
+
+  const normalizedAmount = roundToCents(amount)
+  const evenShare = roundToCents(normalizedAmount / selectedMemberIds.length)
+
+  return Object.fromEntries(
+    selectedMemberIds.map((memberId, index) => {
+      const allocated = evenShare * selectedMemberIds.length
+      const owedAmount =
+        index === selectedMemberIds.length - 1 ? roundToCents(normalizedAmount - (allocated - evenShare)) : evenShare
+      return [memberId, formatMoneyInput(owedAmount)]
+    }),
+  )
+}
+
+function parseMoney(value: string) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? roundToCents(parsed) : 0
+}
+
 type AddExpenseModalProps = {
   open: boolean
   onClose: () => void
-  onSubmitExpense: (expenseData: {
-    description: string
-    amount: number
-    expenseDate: string
-    paidById: string
-    splitBetweenIds: string[]
-  }) => void | Promise<void>
+  onSubmitExpense: (expenseData: ExpenseFormData) => void | Promise<void>
   members: Member[]
-  initialValues?: {
-    description: string
-    amount: number
-    expenseDate: string
-    paidById: string
-    splitBetweenIds: string[]
-  }
+  initialValues?: ExpenseInitialValues
   mode?: 'create' | 'edit'
   onDeleteExpense?: () => void | Promise<void>
   isSubmitting?: boolean
@@ -53,16 +93,23 @@ export function AddExpenseModal({
     amount: 0,
     expenseDate: new Date().toISOString().slice(0, 10),
     paidById: members[0]?.id ?? '',
-    splitBetweenIds: memberIds,
+    splits: memberIds.map((memberId) => ({ userId: memberId, owedAmount: 0 })),
   }
+  const defaultSelectedMemberIds = defaultValues.splits.length > 0 ? defaultValues.splits.map((split) => split.userId) : memberIds
+  const defaultAmount = defaultValues.amount ? String(defaultValues.amount) : ''
+  const defaultSplitAmounts =
+    initialValues && initialValues.splits.length > 0
+      ? Object.fromEntries(initialValues.splits.map((split) => [split.userId, formatMoneyInput(split.owedAmount)]))
+      : buildEvenSplitAmounts(defaultValues.amount, defaultSelectedMemberIds)
 
   const [description, setDescription] = useState(defaultValues.description)
-  const [amount, setAmount] = useState(defaultValues.amount ? String(defaultValues.amount) : '')
+  const [amount, setAmount] = useState(defaultAmount)
   const [expenseDate, setExpenseDate] = useState(defaultValues.expenseDate)
   const [paidById, setPaidById] = useState(defaultValues.paidById)
-  const [splitBetweenIds, setSplitBetweenIds] = useState<string[]>(
-    defaultValues.splitBetweenIds.length > 0 ? defaultValues.splitBetweenIds : memberIds,
-  )
+  const [splitBetweenIds, setSplitBetweenIds] = useState<string[]>(defaultSelectedMemberIds)
+  const [splitAmounts, setSplitAmounts] = useState<Record<string, string>>(defaultSplitAmounts)
+  const [hasManualSplitChanges, setHasManualSplitChanges] = useState(Boolean(initialValues))
+  const [submitError, setSubmitError] = useState('')
 
   if (!open) {
     return null
@@ -70,10 +117,13 @@ export function AddExpenseModal({
 
   const reset = () => {
     setDescription(defaultValues.description)
-    setAmount(defaultValues.amount ? String(defaultValues.amount) : '')
+    setAmount(defaultAmount)
     setExpenseDate(defaultValues.expenseDate)
     setPaidById(defaultValues.paidById)
-    setSplitBetweenIds(defaultValues.splitBetweenIds.length > 0 ? defaultValues.splitBetweenIds : memberIds)
+    setSplitBetweenIds(defaultSelectedMemberIds)
+    setSplitAmounts(defaultSplitAmounts)
+    setHasManualSplitChanges(Boolean(initialValues))
+    setSubmitError('')
   }
 
   const handleClose = () => {
@@ -82,10 +132,47 @@ export function AddExpenseModal({
   }
 
   const toggleSplitMember = (memberId: string) => {
-    setSplitBetweenIds((current) =>
-      current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId],
-    )
+    setSubmitError('')
+    setSplitBetweenIds((current) => {
+      const nextIds = current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId]
+
+      setSplitAmounts((currentAmounts) => {
+        if (!hasManualSplitChanges) {
+          return buildEvenSplitAmounts(parseMoney(amount), nextIds)
+        }
+
+        return nextIds.reduce<Record<string, string>>((nextAmounts, id) => {
+          nextAmounts[id] = currentAmounts[id] ?? formatMoneyInput(nextIds.length > 0 ? parseMoney(amount) / nextIds.length : 0)
+          return nextAmounts
+        }, {})
+      })
+
+      return nextIds
+    })
   }
+
+  const handleAmountChange = (nextAmount: string) => {
+    setAmount(nextAmount)
+    setSubmitError('')
+
+    if (!hasManualSplitChanges) {
+      setSplitAmounts(buildEvenSplitAmounts(parseMoney(nextAmount), splitBetweenIds))
+    }
+  }
+
+  const handleSplitAmountChange = (memberId: string, nextAmount: string) => {
+    setHasManualSplitChanges(true)
+    setSubmitError('')
+    setSplitAmounts((current) => ({ ...current, [memberId]: nextAmount }))
+  }
+
+  const selectedSplits = splitBetweenIds.map((memberId) => ({
+    userId: memberId,
+    owedAmount: parseMoney(splitAmounts[memberId] ?? '0'),
+  }))
+  const selectedSplitTotal = roundToCents(selectedSplits.reduce((sum, split) => sum + split.owedAmount, 0))
+  const totalAmount = parseMoney(amount)
+  const splitDifference = roundToCents(totalAmount - selectedSplitTotal)
 
   return (
     <div className="modal-backdrop" onClick={handleClose} role="presentation">
@@ -104,12 +191,28 @@ export function AddExpenseModal({
             className="auth-form"
             onSubmit={async (event) => {
               event.preventDefault()
+
+               if (splitBetweenIds.length === 0) {
+                setSubmitError('Select at least one member in the split.')
+                return
+              }
+
+              if (!splitBetweenIds.includes(paidById)) {
+                setSubmitError('The payer must also be included in the split.')
+                return
+              }
+
+              if (splitDifference !== 0) {
+                setSubmitError('Split amounts must add up to the total expense.')
+                return
+              }
+
               await onSubmitExpense({
                 description,
-                amount: Number(amount),
+                amount: totalAmount,
                 expenseDate,
                 paidById,
-                splitBetweenIds: splitBetweenIds.length > 0 ? splitBetweenIds : memberIds,
+                splits: selectedSplits,
               })
             }}
           >
@@ -141,7 +244,7 @@ export function AddExpenseModal({
                     step="0.01"
                     placeholder="1200"
                     value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
+                    onChange={(event) => handleAmountChange(event.target.value)}
                     required
                     disabled={isSubmitting || isDeleting}
                   />
@@ -186,19 +289,40 @@ export function AddExpenseModal({
               <Label>Split between</Label>
               <div className="multi-select-shell">
                 {members.map((member) => (
-                  <label key={member.id} className="multi-select-row">
+                  <div key={member.id} className="multi-select-row">
                     <div className="multi-select-info">
                       <Users size={16} />
                       <span>{member.name}</span>
                     </div>
-                    <Checkbox
-                      checked={splitBetweenIds.includes(member.id)}
-                      onChange={() => toggleSplitMember(member.id)}
-                      disabled={isSubmitting || isDeleting}
-                    />
-                  </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div className="input-icon-wrap" style={{ width: '9.5rem' }}>
+                        <DollarSign size={18} />
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={splitAmounts[member.id] ?? ''}
+                          onChange={(event) => handleSplitAmountChange(member.id, event.target.value)}
+                          disabled={!splitBetweenIds.includes(member.id) || isSubmitting || isDeleting}
+                        />
+                      </div>
+                      <Checkbox
+                        checked={splitBetweenIds.includes(member.id)}
+                        onChange={() => toggleSplitMember(member.id)}
+                        disabled={isSubmitting || isDeleting}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
+              <p className="form-copy">
+                Default split is even. You can override any selected member amount as long as the total stays at ${formatMoneyInput(totalAmount)}.
+              </p>
+              <p className={`form-message ${splitDifference === 0 ? '' : 'form-message-error'}`}>
+                Split total: ${formatMoneyInput(selectedSplitTotal)}
+                {splitDifference === 0 ? ' (matches total)' : ` (${splitDifference > 0 ? '$' : '-$'}${formatMoneyInput(Math.abs(splitDifference))} remaining)`}
+              </p>
+              {submitError ? <p className="form-message form-message-error">{submitError}</p> : null}
             </div>
 
             <div className="modal-actions modal-actions-split">

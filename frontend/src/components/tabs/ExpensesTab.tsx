@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DollarSign, Pencil, Plus } from 'lucide-react'
-import { AddExpenseModal } from '../AddExpenseModal'
+import { AddExpenseModal, type ExpenseFormData, type ExpenseInitialValues } from '../AddExpenseModal'
 import { Avatar, AvatarFallback } from '../ui/avatar'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
@@ -29,14 +29,6 @@ type ExpenseItem = {
   paidById: string
   paidByName: string
   splitBetween: ExpenseSplit[]
-}
-
-type ExpenseFormValues = {
-  description: string
-  amount: number
-  expenseDate: string
-  paidById: string
-  splitBetweenIds: string[]
 }
 
 type SummaryMember = {
@@ -163,24 +155,16 @@ export default function ExpensesTab({ members, tripId }: { members: Member[]; tr
     setIsAddModalOpen(true)
   }
 
-  const handleSubmitExpense = async (expenseData: ExpenseFormValues) => {
+  const handleSubmitExpense = async (expenseData: ExpenseFormData) => {
     if (!token) {
       return
     }
 
-    const selectedMemberIds = expenseData.splitBetweenIds.length > 0 ? expenseData.splitBetweenIds : members.map((member) => member.id)
-    const equalShare = Number((expenseData.amount / selectedMemberIds.length).toFixed(2))
-    const splits = selectedMemberIds.map((memberId, index) => {
-      const runningTotal = equalShare * selectedMemberIds.length
-      const adjustedOwedAmount =
-        index === selectedMemberIds.length - 1
-          ? Number((expenseData.amount - (runningTotal - equalShare)).toFixed(2))
-          : equalShare
-
+    const splits = expenseData.splits.map((split) => {
       return {
-        user_id: Number(memberId),
-        owed_amount: adjustedOwedAmount,
-        paid_amount: memberId === expenseData.paidById ? expenseData.amount : 0,
+        user_id: Number(split.userId),
+        owed_amount: split.owedAmount,
+        paid_amount: split.userId === expenseData.paidById ? expenseData.amount : 0,
       }
     })
 
@@ -391,8 +375,8 @@ export default function ExpensesTab({ members, tripId }: { members: Member[]; tr
           amount: selectedExpense.amount,
           expenseDate: selectedExpense.date,
           paidById: selectedExpense.paidById,
-          splitBetweenIds: selectedExpense.splitBetween.map((split) => split.userId),
-        } : undefined}
+          splits: selectedExpense.splitBetween.map((split) => ({ userId: split.userId, owedAmount: split.owedAmount })),
+        } satisfies ExpenseInitialValues : undefined}
         mode={selectedExpense ? 'edit' : 'create'}
         onDeleteExpense={selectedExpense ? handleDeleteExpense : undefined}
         isSubmitting={isSubmitting}
