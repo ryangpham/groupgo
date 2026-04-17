@@ -73,47 +73,50 @@ export default function ExpensesTab({ members, tripId }: { members: Member[]; tr
 
     setIsLoading(true)
     setError('')
+    try {
+      const [expenseRows, summaryRow] = await Promise.all([getTripExpenses(token, tripId), getTripExpenseSummary(token, tripId)])
 
-    const [expenseRows, summaryRow] = await Promise.all([getTripExpenses(token, tripId), getTripExpenseSummary(token, tripId)])
+      setExpenses(
+        expenseRows.map((row) => {
+          const expense = (row.expense ?? {}) as Record<string, unknown>
+          const splits = Array.isArray(row.splits) ? row.splits : []
 
-    setExpenses(
-      expenseRows.map((row) => {
-        const expense = (row.expense ?? {}) as Record<string, unknown>
-        const splits = Array.isArray(row.splits) ? row.splits : []
+          return {
+            id: String(expense.expense_id),
+            description: typeof expense.description === 'string' ? expense.description : 'Untitled expense',
+            amount: Number(expense.amount ?? 0),
+            date: typeof expense.expense_date === 'string' ? expense.expense_date : '',
+            paidById: String(expense.paid_by_user_id ?? ''),
+            paidByName: typeof expense.paid_by_name === 'string' ? expense.paid_by_name : 'Unknown',
+            splitBetween: splits.map((split) => {
+              const splitRow = split as Record<string, unknown>
+              return {
+                userId: String(splitRow.user_id),
+                userName: typeof splitRow.user_name === 'string' ? splitRow.user_name : 'Unknown',
+                owedAmount: Number(splitRow.owed_amount ?? 0),
+                paidAmount: Number(splitRow.paid_amount ?? 0),
+              }
+            }),
+          }
+        }),
+      )
 
-        return {
-          id: String(expense.expense_id),
-          description: typeof expense.description === 'string' ? expense.description : 'Untitled expense',
-          amount: Number(expense.amount ?? 0),
-          date: typeof expense.expense_date === 'string' ? expense.expense_date : '',
-          paidById: String(expense.paid_by_user_id ?? ''),
-          paidByName: typeof expense.paid_by_name === 'string' ? expense.paid_by_name : 'Unknown',
-          splitBetween: splits.map((split) => {
-            const splitRow = split as Record<string, unknown>
-            return {
-              userId: String(splitRow.user_id),
-              userName: typeof splitRow.user_name === 'string' ? splitRow.user_name : 'Unknown',
-              owedAmount: Number(splitRow.owed_amount ?? 0),
-              paidAmount: Number(splitRow.paid_amount ?? 0),
-            }
-          }),
-        }
-      }),
-    )
-
-    const summaryMembers = Array.isArray(summaryRow.members) ? summaryRow.members : []
-    setSummary({
-      totalExpenses: Number(summaryRow.total_expenses ?? 0),
-      totalOwed: Number(summaryRow.total_owed ?? 0),
-      totalPaid: Number(summaryRow.total_paid ?? 0),
-      members: summaryMembers.map((memberRow) => ({
-        userId: String(memberRow.user_id),
-        userName: typeof memberRow.user_name === 'string' ? memberRow.user_name : 'Unknown',
-        totalOwed: Number(memberRow.total_owed ?? 0),
-        totalPaid: Number(memberRow.total_paid ?? 0),
-        balance: Number(memberRow.balance ?? 0),
-      })),
-    })
+      const summaryMembers = Array.isArray(summaryRow.members) ? summaryRow.members : []
+      setSummary({
+        totalExpenses: Number(summaryRow.total_expenses ?? 0),
+        totalOwed: Number(summaryRow.total_owed ?? 0),
+        totalPaid: Number(summaryRow.total_paid ?? 0),
+        members: summaryMembers.map((memberRow) => ({
+          userId: String(memberRow.user_id),
+          userName: typeof memberRow.user_name === 'string' ? memberRow.user_name : 'Unknown',
+          totalOwed: Number(memberRow.total_owed ?? 0),
+          totalPaid: Number(memberRow.total_paid ?? 0),
+          balance: Number(memberRow.balance ?? 0),
+        })),
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }, [token, tripId])
 
   useEffect(() => {
@@ -127,11 +130,6 @@ export default function ExpensesTab({ members, tripId }: { members: Member[]; tr
       .catch((apiError) => {
         if (!cancelled) {
           setError(apiError instanceof ApiError ? apiError.message : 'Unable to load expenses')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoading(false)
         }
       })
 
