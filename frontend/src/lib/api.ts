@@ -149,6 +149,29 @@ export function createExpense(
   return request<Record<string, unknown>>('/expenses', { method: 'POST', token, body: payload })
 }
 
+export function updateExpense(
+  token: string,
+  expenseId: string,
+  payload: {
+    trip_id?: number
+    description?: string
+    amount?: number
+    expense_date?: string
+    paid_by_user_id?: number
+    splits?: Array<{
+      user_id: number
+      owed_amount: number
+      paid_amount: number
+    }>
+  },
+) {
+  return request<Record<string, unknown>>(`/expenses/${expenseId}`, { method: 'PUT', token, body: payload })
+}
+
+export function deleteExpense(token: string, expenseId: string) {
+  return request<Record<string, unknown>>(`/expenses/${expenseId}`, { method: 'DELETE', token })
+}
+
 export function updateExpensePayment(
   token: string,
   expenseId: string,
@@ -265,4 +288,3 @@ export function updateReservation(
 export function deleteReservation(token: string, reservationId: string) {
   return request<Record<string, unknown>>(`/reservations/${reservationId}`, { method: 'DELETE', token })
 }
-

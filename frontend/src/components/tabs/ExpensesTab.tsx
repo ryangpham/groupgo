@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
-import { DollarSign, Plus } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { DollarSign, Pencil, Plus } from 'lucide-react'
 import { AddExpenseModal } from '../AddExpenseModal'
 import { Avatar, AvatarFallback } from '../ui/avatar'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { useAuth } from '../../hooks/useAuth'
-import { ApiError, createExpense, getTripExpenseSummary, getTripExpenses } from '../../lib/api'
+import { ApiError, createExpense, deleteExpense, getTripExpenseSummary, getTripExpenses, updateExpense } from '../../lib/api'
 import { parseDateOnly } from '../../lib/date'
 
 type Member = {
@@ -31,6 +31,14 @@ type ExpenseItem = {
   splitBetween: ExpenseSplit[]
 }
 
+type ExpenseFormValues = {
+  description: string
+  amount: number
+  expenseDate: string
+  paidById: string
+  splitBetweenIds: string[]
+}
+
 type SummaryMember = {
   userId: string
   userName: string
@@ -53,16 +61,68 @@ function formatCurrency(value: number) {
 export default function ExpensesTab({ members, tripId }: { members: Member[]; tripId: string }) {
   const { token } = useAuth()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseItem | null>(null)
   const [expenses, setExpenses] = useState<ExpenseItem[]>([])
   const [summary, setSummary] = useState<ExpenseSummary>({ totalExpenses: 0, totalOwed: 0, totalPaid: 0, members: [] })
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const memberLookup = useMemo(
     () => Object.fromEntries(members.map((member) => [member.id, member])),
     [members],
   )
+
+  const loadExpenses = useCallback(async () => {
+    if (!token) {
+      return
+    }
+
+    setIsLoading(true)
+    setError('')
+
+    const [expenseRows, summaryRow] = await Promise.all([getTripExpenses(token, tripId), getTripExpenseSummary(token, tripId)])
+
+    setExpenses(
+      expenseRows.map((row) => {
+        const expense = (row.expense ?? {}) as Record<string, unknown>
+        const splits = Array.isArray(row.splits) ? row.splits : []
+
+        return {
+          id: String(expense.expense_id),
+          description: typeof expense.description === 'string' ? expense.description : 'Untitled expense',
+          amount: Number(expense.amount ?? 0),
+          date: typeof expense.expense_date === 'string' ? expense.expense_date : '',
+          paidById: String(expense.paid_by_user_id ?? ''),
+          paidByName: typeof expense.paid_by_name === 'string' ? expense.paid_by_name : 'Unknown',
+          splitBetween: splits.map((split) => {
+            const splitRow = split as Record<string, unknown>
+            return {
+              userId: String(splitRow.user_id),
+              userName: typeof splitRow.user_name === 'string' ? splitRow.user_name : 'Unknown',
+              owedAmount: Number(splitRow.owed_amount ?? 0),
+              paidAmount: Number(splitRow.paid_amount ?? 0),
+            }
+          }),
+        }
+      }),
+    )
+
+    const summaryMembers = Array.isArray(summaryRow.members) ? summaryRow.members : []
+    setSummary({
+      totalExpenses: Number(summaryRow.total_expenses ?? 0),
+      totalOwed: Number(summaryRow.total_owed ?? 0),
+      totalPaid: Number(summaryRow.total_paid ?? 0),
+      members: summaryMembers.map((memberRow) => ({
+        userId: String(memberRow.user_id),
+        userName: typeof memberRow.user_name === 'string' ? memberRow.user_name : 'Unknown',
+        totalOwed: Number(memberRow.total_owed ?? 0),
+        totalPaid: Number(memberRow.total_paid ?? 0),
+        balance: Number(memberRow.balance ?? 0),
+      })),
+    })
+  }, [token, tripId])
 
   useEffect(() => {
     if (!token) {
@@ -71,54 +131,7 @@ export default function ExpensesTab({ members, tripId }: { members: Member[]; tr
 
     let cancelled = false
 
-    setIsLoading(true)
-    setError('')
-
-    Promise.all([getTripExpenses(token, tripId), getTripExpenseSummary(token, tripId)])
-      .then(([expenseRows, summaryRow]) => {
-        if (cancelled) {
-          return
-        }
-
-        setExpenses(
-          expenseRows.map((row) => {
-            const expense = (row.expense ?? {}) as Record<string, unknown>
-            const splits = Array.isArray(row.splits) ? row.splits : []
-
-            return {
-              id: String(expense.expense_id),
-              description: typeof expense.description === 'string' ? expense.description : 'Untitled expense',
-              amount: Number(expense.amount ?? 0),
-              date: typeof expense.expense_date === 'string' ? expense.expense_date : '',
-              paidById: String(expense.paid_by_user_id ?? ''),
-              paidByName: typeof expense.paid_by_name === 'string' ? expense.paid_by_name : 'Unknown',
-              splitBetween: splits.map((split) => {
-                const splitRow = split as Record<string, unknown>
-                return {
-                  userId: String(splitRow.user_id),
-                  userName: typeof splitRow.user_name === 'string' ? splitRow.user_name : 'Unknown',
-                  owedAmount: Number(splitRow.owed_amount ?? 0),
-                  paidAmount: Number(splitRow.paid_amount ?? 0),
-                }
-              }),
-            }
-          }),
-        )
-
-        const summaryMembers = Array.isArray(summaryRow.members) ? summaryRow.members : []
-        setSummary({
-          totalExpenses: Number(summaryRow.total_expenses ?? 0),
-          totalOwed: Number(summaryRow.total_owed ?? 0),
-          totalPaid: Number(summaryRow.total_paid ?? 0),
-          members: summaryMembers.map((memberRow) => ({
-            userId: String(memberRow.user_id),
-            userName: typeof memberRow.user_name === 'string' ? memberRow.user_name : 'Unknown',
-            totalOwed: Number(memberRow.total_owed ?? 0),
-            totalPaid: Number(memberRow.total_paid ?? 0),
-            balance: Number(memberRow.balance ?? 0),
-          })),
-        })
-      })
+    loadExpenses()
       .catch((apiError) => {
         if (!cancelled) {
           setError(apiError instanceof ApiError ? apiError.message : 'Unable to load expenses')
@@ -133,15 +146,24 @@ export default function ExpensesTab({ members, tripId }: { members: Member[]; tr
     return () => {
       cancelled = true
     }
-  }, [token, tripId])
+  }, [loadExpenses, token])
 
-  const handleAddExpense = async (expenseData: {
-    description: string
-    amount: number
-    expenseDate: string
-    paidById: string
-    splitBetweenIds: string[]
-  }) => {
+  const closeModal = () => {
+    setSelectedExpense(null)
+    setIsAddModalOpen(false)
+  }
+
+  const openCreateModal = () => {
+    setSelectedExpense(null)
+    setIsAddModalOpen(true)
+  }
+
+  const openEditModal = (expense: ExpenseItem) => {
+    setSelectedExpense(expense)
+    setIsAddModalOpen(true)
+  }
+
+  const handleSubmitExpense = async (expenseData: ExpenseFormValues) => {
     if (!token) {
       return
     }
@@ -166,73 +188,51 @@ export default function ExpensesTab({ members, tripId }: { members: Member[]; tr
       setIsSubmitting(true)
       setError('')
 
-      const createdExpense = await createExpense(token, {
-        trip_id: Number(tripId),
-        description: expenseData.description.trim(),
-        amount: expenseData.amount,
-        expense_date: expenseData.expenseDate,
-        paid_by_user_id: Number(expenseData.paidById),
-        splits,
-      })
-
-      const expenseRow = (createdExpense.expense ?? {}) as Record<string, unknown>
-      const splitRows = Array.isArray(createdExpense.splits) ? createdExpense.splits : []
-
-      setExpenses((current) => [
-        {
-          id: String(expenseRow.expense_id),
-          description: typeof expenseRow.description === 'string' ? expenseRow.description : expenseData.description,
-          amount: Number(expenseRow.amount ?? expenseData.amount),
-          date: typeof expenseRow.expense_date === 'string' ? expenseRow.expense_date : expenseData.expenseDate,
-          paidById: String(expenseRow.paid_by_user_id ?? expenseData.paidById),
-          paidByName:
-            typeof expenseRow.paid_by_name === 'string'
-              ? expenseRow.paid_by_name
-              : memberLookup[expenseData.paidById]?.name ?? 'Unknown',
-          splitBetween: splitRows.map((split) => {
-            const splitRow = split as Record<string, unknown>
-            const member = memberLookup[String(splitRow.user_id)]
-            return {
-              userId: String(splitRow.user_id),
-              userName: typeof splitRow.user_name === 'string' ? splitRow.user_name : member?.name ?? 'Unknown',
-              owedAmount: Number(splitRow.owed_amount ?? 0),
-              paidAmount: Number(splitRow.paid_amount ?? 0),
-            }
-          }),
-        },
-        ...current,
-      ])
-
-      setSummary((current) => {
-        const nextMembers = new Map(current.members.map((member) => [member.userId, { ...member }]))
-
-        splits.forEach((split) => {
-          const member = nextMembers.get(String(split.user_id)) ?? {
-            userId: String(split.user_id),
-            userName: memberLookup[String(split.user_id)]?.name ?? 'Unknown',
-            totalOwed: 0,
-            totalPaid: 0,
-            balance: 0,
-          }
-
-          member.totalOwed += split.owed_amount
-          member.totalPaid += split.paid_amount
-          member.balance = member.totalPaid - member.totalOwed
-          nextMembers.set(member.userId, member)
+      if (selectedExpense) {
+        await updateExpense(token, selectedExpense.id, {
+          trip_id: Number(tripId),
+          description: expenseData.description.trim(),
+          amount: expenseData.amount,
+          expense_date: expenseData.expenseDate,
+          paid_by_user_id: Number(expenseData.paidById),
+          splits,
         })
+      } else {
+        await createExpense(token, {
+          trip_id: Number(tripId),
+          description: expenseData.description.trim(),
+          amount: expenseData.amount,
+          expense_date: expenseData.expenseDate,
+          paid_by_user_id: Number(expenseData.paidById),
+          splits,
+        })
+      }
 
-        return {
-          totalExpenses: current.totalExpenses + expenseData.amount,
-          totalOwed: current.totalOwed + expenseData.amount,
-          totalPaid: current.totalPaid + expenseData.amount,
-          members: Array.from(nextMembers.values()).sort((left, right) => left.userName.localeCompare(right.userName)),
-        }
-      })
+      await loadExpenses()
+      closeModal()
     } catch (apiError) {
-      setError(apiError instanceof ApiError ? apiError.message : 'Unable to add expense')
+      setError(apiError instanceof ApiError ? apiError.message : 'Unable to save expense')
       throw apiError
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteExpense = async () => {
+    if (!token || !selectedExpense) {
+      return
+    }
+
+    try {
+      setIsDeleting(true)
+      setError('')
+      await deleteExpense(token, selectedExpense.id)
+      await loadExpenses()
+      closeModal()
+    } catch (apiError) {
+      setError(apiError instanceof ApiError ? apiError.message : 'Unable to delete expense')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -244,7 +244,7 @@ export default function ExpensesTab({ members, tripId }: { members: Member[]; tr
           <h2>Track shared expenses and balances</h2>
           <p>Capture trip costs, split them across members, and keep a live shared budget summary.</p>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)}>
+        <Button onClick={openCreateModal}>
           <Plus size={18} />
           <span>Add Expense</span>
         </Button>
@@ -359,6 +359,14 @@ export default function ExpensesTab({ members, tripId }: { members: Member[]; tr
                     <span>
                       {expense.splitBetween.map((split) => `${split.userName} ($${formatCurrency(split.owedAmount)})`).join(', ')}
                     </span>
+                    <Button
+                      variant="ghost"
+                      onClick={() => openEditModal(expense)}
+                      aria-label={`Edit ${expense.description}`}
+                      style={{ marginLeft: 'auto', flexShrink: 0 }}
+                    >
+                      <Pencil size={16} />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -373,11 +381,22 @@ export default function ExpensesTab({ members, tripId }: { members: Member[]; tr
       )}
 
       <AddExpenseModal
+        key={selectedExpense ? `edit-${selectedExpense.id}` : 'create-expense'}
         open={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAddExpense={handleAddExpense}
+        onClose={closeModal}
+        onSubmitExpense={handleSubmitExpense}
         members={members}
+        initialValues={selectedExpense ? {
+          description: selectedExpense.description,
+          amount: selectedExpense.amount,
+          expenseDate: selectedExpense.date,
+          paidById: selectedExpense.paidById,
+          splitBetweenIds: selectedExpense.splitBetween.map((split) => split.userId),
+        } : undefined}
+        mode={selectedExpense ? 'edit' : 'create'}
+        onDeleteExpense={selectedExpense ? handleDeleteExpense : undefined}
         isSubmitting={isSubmitting}
+        isDeleting={isDeleting}
       />
     </section>
   )
